@@ -1,0 +1,50 @@
+[package]
+name = "convention-lint"
+version = "0.1.0"
+edition = "2024"
+description = "File-naming convention linter configurable via Cargo.toml metadata — use as `cargo convention-lint` or embed as a library"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/jaroslawroszyk/convention-lint"
+documentation = "https://docs.rs/convention-lint"
+homepage = "https://github.com/jaroslawroszyk/convention-lint"
+keywords = ["lint", "naming", "convention", "idl", "cargo"]
+categories = ["development-tools", "command-line-utilities"]
+exclude = ["tests/", ".github/"]
+
+[[bin]]
+name = "cargo-convention-lint"
+path = "src/main.rs"
+
+[dependencies]
+thiserror = "1"
+toml = "0.8"
+walkdir = "2"
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile = "3"
+
+# ---------------------------------------------------------------------------
+# Lint configuration — enforced on `cargo clippy` and in CI.
+# All pedantic + nursery lints are enabled by default; individual lints
+# that are too noisy for this codebase are explicitly allowed below.
+# ---------------------------------------------------------------------------
+[lints.rust]
+missing_docs       = "warn"
+unreachable_pub    = "warn"
+unused_import_braces = "warn"
+unused_lifetimes   = "warn"
+
+[lints.clippy]
+# Groups — start strict, allow specific exceptions below
+pedantic = { level = "warn", priority = -1 }
+nursery  = { level = "warn", priority = -1 }
+
+# Exceptions — lints from the groups above that are too opinionated
+# or conflict with idiomatic patterns in this codebase.
+module_name_repetitions = "allow"  # e.g. config::Config, error::Error
+missing_errors_doc      = "allow"  # covered by variant-level docs in Error
+
+
