@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Check + test matrix (stable + MSRV)
+  # -------------------------------------------------------------------------
+  test:
+    name: Test (${{ matrix.rust }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust:
+          - stable
+          - "1.80.0"   # MSRV — edition 2024 requires ≥ 1.80
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --all-targets
+
+      - name: Test
+        run: cargo test --all-targets
+
+  # -------------------------------------------------------------------------
+  # Static checks — mirrors the local `checks()` shell function:
+  #   cargo machete --with-metadata
+  #   cargo sort --workspace --check
+  #   cargo fmt --check
+  #   cargo clippy --all-features -- -D warnings
+  # -------------------------------------------------------------------------
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable (clippy + rustfmt)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-machete
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-machete
+
+      - name: Install cargo-sort
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-sort
+
+      - name: Unused dependencies (cargo machete)
+        run: cargo machete --with-metadata
+
+      - name: Sorted Cargo.toml (cargo sort)
+        run: cargo sort --workspace --check
+
+      - name: Formatting (cargo fmt)
+        run: cargo fmt --check
+
+      - name: Clippy (cargo clippy)
+        run: cargo clippy --all-features -- -D warnings
+
+  # -------------------------------------------------------------------------
+  # Documentation — ensures `cargo doc` is warning-free
+  # -------------------------------------------------------------------------
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build docs
+        run: cargo doc --no-deps --document-private-items
+
+  # -------------------------------------------------------------------------
+  # cargo package dry-run — catches publishing issues early
+  # -------------------------------------------------------------------------
+  package:
+    name: cargo package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Package dry-run
+        run: cargo package --no-verify
