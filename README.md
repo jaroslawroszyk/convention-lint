@@ -1,7 +1,7 @@
 # convention-lint
 
 [![Crates.io](https://img.shields.io/crates/v/convention-lint)](https://crates.io/crates/convention-lint)
-[![Docs.rs](https://docs.rs/convention-lint/badge.svg)](https://docs.rs/convention-lint)
+[![Docs.rs](https://docs.rs/convention-lint/badge.svg)]((https://docs.rs/crate/convention-lint/latest))
 [![CI](https://github.com/jaroslawroszyk/convention-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/jaroslawroszyk/convention-lint/actions)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](https://github.com/jaroslawroszyk/convention-lint#license)
 
