@@ -8,10 +8,10 @@ use std::path::Path;
 
 use tempfile::TempDir;
 
-use convention_lint::Convention;
 use convention_lint::config::load_config;
 use convention_lint::error::Error;
 use convention_lint::lint::run;
+use convention_lint::Convention;
 
 // ---------------------------------------------------------------------------
 // Helpers
