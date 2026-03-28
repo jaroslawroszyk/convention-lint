@@ -6,17 +6,9 @@
 [<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/roszyk/convention-lint/ci.yml?branch=main&style=for-the-badge" height="20">](https://github.com/jaroslawroszyk/convention-lint/actions?query=branch%3Amain)
 [<img alt="license" src="https://img.shields.io/badge/license-MIT%2FApache--2.0-blue?style=for-the-badge" height="20">](#license)
 
-A file-naming convention linter that you configure once in `Cargo.toml` and run
-as a Cargo subcommand — or embed as a library in your own tooling.
+A file-naming convention linter for Rust projects. Configure it once in `Cargo.toml`, run it as a Cargo subcommand.
 
----
-
-## Key Features
-
-* 🚀 **High Performance**: Built with the `ignore` crate, using **parallel directory traversal** (multithreaded) just like `ripgrep`.
-* 🙈 **Git-aware**: Automatically respects your **`.gitignore`** rules and skips hidden files/folders by default.
-* 📦 **Monorepo Ready**: Full support for `[workspace.metadata]` to keep rules consistent across all crates in a workspace.
-* 🛠️ **CI Ready**: Exits with non-zero code on violations and uses `rustc`-style error formatting for easy log parsing.
+Uses the `ignore` crate for parallel directory traversal (same as ripgrep), so it respects `.gitignore` and skips hidden files out of the box. Errors are printed in `rustc`/`clippy` style.
 
 ---
 
@@ -26,9 +18,7 @@ as a Cargo subcommand — or embed as a library in your own tooling.
 cargo install convention-lint
 ```
 
-This installs the `cargo-convention-lint` binary into `~/.cargo/bin`.  Because
-Cargo resolves subcommands by looking for `cargo-<name>` on `PATH`, the
-installed binary is immediately usable as:
+The binary is named `cargo-convention-lint`, so Cargo picks it up automatically as a subcommand:
 
 ```sh
 cargo convention-lint
@@ -36,28 +26,11 @@ cargo convention-lint
 
 ---
 
-## Quick start
+## Configuration
 
-Add a `[package.metadata.convention-lint]` (or `[workspace.metadata.convention-lint]`) section to your project's
-`Cargo.toml`.  Each key is a file extension (without `.`) mapped to a
-convention name.
+Add a `[package.metadata.convention-lint]` section to your `Cargo.toml`. Each key is a file extension mapped to a convention name.
 
-## Workspace Root Example
-Defining rules in the `[workspace]` section is the easiest way to ensure consistency across multiple crates:
-
-```toml
-[workspace.metadata.convention-lint]
-rs    = "snake_case"
-idl   = "snake_case"
-proto = "snake_case"
-
-[workspace.metadata.convention-lint.dirs]
-idl = ["src/idl", "proto"]
-# `rs` has no entry here → the whole project is scanned recursively, respecting .gitignore
-```
-
-## Single Package Example
-For smaller projects, use the `[package]` section:
+**Single package:**
 
 ```toml
 [package.metadata.convention-lint]
@@ -67,37 +40,46 @@ rs = "CamelCase"
 rs = ["src/models"]
 ```
 
-Then simply run:
+**Workspace** — put the config in the root `Cargo.toml` under `[workspace.metadata]`:
+
+```toml
+[workspace.metadata.convention-lint]
+rs    = "snake_case"
+idl   = "snake_case"
+proto = "snake_case"
+
+[workspace.metadata.convention-lint.dirs]
+idl = ["src/idl", "proto"]
+# extensions without a dirs entry are scanned recursively
+```
+
+Then run:
 
 ```sh
 cargo convention-lint
-# or explicitly:
+# or point at a specific manifest:
 cargo convention-lint --manifest-path path/to/Cargo.toml
 ```
 
-The linter exits with code `0` when all names are conformant, or `1` when
-violations are found — making it suitable for CI pipelines.
+Exit code is `0` if everything passes, `1` if there are violations.
 
 ---
 
 ## Supported conventions
 
-| Identifier            | Example          | Description                        |
-|-----------------------|------------------|------------------------------------|
-| `snake_case`          | `my_service`     | All lowercase, underscores         |
-| `CamelCase`           | `MyService`      | UpperCamelCase / PascalCase        |
-| `camelCase`           | `myService`      | lowerCamelCase                     |
-| `SCREAMING_SNAKE_CASE`| `MY_CONSTANT`    | All uppercase, underscores         |
-| `kebab-case`          | `my-service`     | All lowercase, hyphens             |
+| Name                  | Example        |
+|-----------------------|----------------|
+| `snake_case`          | `my_service`   |
+| `CamelCase`           | `MyService`    |
+| `camelCase`           | `myService`    |
+| `SCREAMING_SNAKE_CASE`| `MY_CONSTANT`  |
+| `kebab-case`          | `my-service`   |
 
 `PascalCase` is accepted as an alias for `CamelCase`.
 
 ---
 
-## Output format
-
-Violations are printed in the same `error[…]: …` style used by `rustc` and
-`clippy`, so they render correctly in most CI log viewers:
+## Output
 
 ```
 error[convention]: `src/idl/MyService.idl` — stem `MyService` does not follow snake_case convention
@@ -110,20 +92,19 @@ convention-lint: found 2 naming violation(s)
 
 ## Testing
 
-The repository ships two fixture projects under `tests/fixtures/` that double
-as both automated test data and **copy-paste examples** for your own projects:
+`tests/fixtures/` contains two small projects you can run against directly:
 
 ```
 tests/fixtures/
 ├── pass/          ← all files conform → exit 0
-│   ├── Cargo.toml          (idl = "snake_case", rs = "snake_case")
+│   ├── Cargo.toml
 │   ├── idl/
 │   │   ├── my_service.idl
 │   │   └── order_processor.idl
 │   └── src/
 │       └── my_module.rs
 └── fail/          ← intentional violations → exit 1
-    ├── Cargo.toml          (idl = "snake_case", rs = "CamelCase")
+    ├── Cargo.toml
     ├── idl/
     │   ├── my_service.idl    ✓
     │   ├── MyService.idl     ✗  (should be snake_case)
@@ -133,17 +114,12 @@ tests/fixtures/
         └── bad_module.rs     ✗  (should be CamelCase)
 ```
 
-Run them manually to see the linter in action:
-
 ```sh
-# should print "all files follow configured naming conventions" and exit 0
 cargo run -- convention-lint --manifest-path tests/fixtures/pass/Cargo.toml
-
-# should list violations and exit 1
 cargo run -- convention-lint --manifest-path tests/fixtures/fail/Cargo.toml
 ```
 
-The full test suite (unit + integration + CLI + doc-tests):
+Full test suite:
 
 ```sh
 cargo test
@@ -151,18 +127,17 @@ cargo test
 
 ---
 
-## CI integration
+## CI
 
 ### GitHub Actions
 
 ```yaml
-# .github/workflows/ci.yml
-- name: Check naming conventions
+- name: Install convention-lint
   uses: taiki-e/install-action@v2
   with:
     tool: convention-lint
 
-- name: Run linter
+- name: Check naming conventions
   run: cargo convention-lint
 ```
 
@@ -177,11 +152,9 @@ cargo convention-lint || exit 1
 
 ## Library usage
 
-`convention-lint` exposes its full API as a library so you can embed it in
-build scripts, proc-macros, or other Cargo plugins:
+The crate also works as a library if you want to embed it in a build script or another tool:
 
 ```toml
-# Cargo.toml
 [dependencies]
 convention-lint = "0.1"
 ```
@@ -191,8 +164,7 @@ use convention_lint::{config::load_config, lint::run};
 use std::path::Path;
 
 fn main() {
-    let manifest = Path::new("Cargo.toml");
-    let cfg = load_config(manifest).expect("Failed to load config");
+    let cfg = load_config(Path::new("Cargo.toml")).expect("failed to load config");
     let violations = run(&cfg, Path::new("."));
 
     for v in &violations {
@@ -205,21 +177,21 @@ fn main() {
 }
 ```
 
-The public API surface:
+Public API:
 
 | Item | Description |
 |------|-------------|
-| `convention_lint::Convention` | Enum of all supported conventions |
-| `convention_lint::Error` | All error variants from config loading |
-| `convention_lint::Violation` | A single naming violation |
-| `convention_lint::config::load_config` | Parse config from a `Cargo.toml` path |
-| `convention_lint::lint::run` | Walk the filesystem and return violations |
+| `convention_lint::Convention` | enum of supported conventions |
+| `convention_lint::Error` | error variants from config loading |
+| `convention_lint::Violation` | a single naming violation |
+| `convention_lint::config::load_config` | parse config from a `Cargo.toml` path |
+| `convention_lint::lint::run` | walk the filesystem and collect violations |
 
-See [docs.rs/convention-lint](https://docs.rs/convention-lint) for the full API
-reference.
+Full docs on [docs.rs/convention-lint](https://docs.rs/convention-lint).
 
 ---
 
 ## License
+
 - [MIT](LICENSE-MIT)
-- [Apache 2.0](LICENSE-APACHE)
+- [Apache 2.0](LICENSE-APACHE),
