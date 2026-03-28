@@ -91,7 +91,17 @@ pub fn run(config: &Config, project_root: &Path) -> Vec<Violation> {
 fn search_dirs(config: &Config, ext: &str, project_root: &Path) -> Vec<PathBuf> {
     config.dirs.get(ext).map_or_else(
         || vec![project_root.to_path_buf()],
-        |dirs| dirs.iter().map(|d| project_root.join(d)).collect(),
+        |dirs| {
+            dirs.iter()
+                .map(|d| {
+                    if d.as_os_str().is_empty() || d == Path::new(".") {
+                        project_root.to_path_buf()
+                    } else {
+                        project_root.join(d)
+                    }
+                })
+                .collect()
+        },
     )
 }
 

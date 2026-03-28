@@ -86,6 +86,11 @@ pub fn load_config(manifest_path: &Path) -> Result<Config, Error> {
         .get("package")
         .and_then(|p| p.get("metadata"))
         .and_then(|m| m.get("convention-lint"))
+        .or_else(|| {
+            doc.get("workspace")
+                .and_then(|w| w.get("metadata"))
+                .and_then(|m| m.get("convention-lint"))
+        })
         .ok_or_else(|| Error::MissingSection(manifest_path.to_owned()))?;
 
     let table = section.as_table().ok_or(Error::InvalidSection)?;

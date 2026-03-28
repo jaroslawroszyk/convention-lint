@@ -49,3 +49,8 @@ module_name_repetitions = "allow"  # e.g. config::Config, error::Error
 missing_errors_doc      = "allow"  # covered by variant-level docs in Error
 
 
+[package.metadata.convention-lint]
+rs = "snake_case"
+
+[package.metadata.convention-lint.dirs]
+rs = ["src/"]

@@ -20,10 +20,18 @@ fn main() {
         .and_then(|i| args.get(i + 1))
         .map_or_else(|| PathBuf::from("Cargo.toml"), PathBuf::from);
 
-    let project_root = manifest_path
-        .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .to_path_buf();
+    let project_root = if manifest_path.is_absolute() {
+        manifest_path
+            .parent()
+            .unwrap_or(Path::new("."))
+            .to_path_buf()
+    } else {
+        manifest_path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new("."))
+            .to_path_buf()
+    };
 
     let config = match load_config(&manifest_path) {
         Ok(c) => c,
@@ -35,7 +43,7 @@ fn main() {
 
     if config.rules.is_empty() {
         eprintln!("warning: no conventions configured in [package.metadata.convention-lint]");
-        return;
+        process::exit(1);
     }
 
     let violations = run(&config, &project_root);

@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/convention-lint)](https://crates.io/crates/convention-lint)
 [![Docs.rs](https://docs.rs/convention-lint/badge.svg)](https://docs.rs/convention-lint)
 [![CI](https://github.com/jaroslawroszyk/convention-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/jaroslawroszyk/convention-lint/actions)
-[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](https://github.com/TWOJA_NAZWA/convention-lint#license)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](https://github.com/jaroslawroszyk/convention-lint#license)
 
 A file-naming convention linter that you configure once in `Cargo.toml` and run
 as a Cargo subcommand — or embed as a library in your own tooling.
@@ -28,7 +28,7 @@ cargo convention-lint
 
 ## Quick start
 
-Add a `[package.metadata.convention-lint]` section to your project's
+Add a `[package.metadata.convention-lint]` (or `[workspace.metadata.convention-lint]`) section... section to your project's
 `Cargo.toml`.  Each key is a file extension (without `.`) mapped to a
 convention name:
 

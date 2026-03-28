@@ -155,11 +155,18 @@ fn missing_manifest_exits_nonzero_with_message() {
 
 #[test]
 fn missing_metadata_section_exits_nonzero() {
-    // The fixture Cargo.tomls both have the section, so we ask for a manifest
-    // that is present but lacks [package.metadata.convention-lint].
+    use std::fs;
+    let dir = tempfile::tempdir().unwrap();
+    let empty_toml = dir.path().join("Cargo.toml");
+    
+    fs::write(
+        &empty_toml,
+        "[package]\nname = \"empty\"\nversion = \"0.1.0\""
+    ).unwrap();
+
     linter()
-        .args(["--manifest-path", "Cargo.toml"]) // our own manifest — no lint metadata
+        .args(["--manifest-path", empty_toml.to_str().unwrap()])
         .assert()
-        .failure()
+        .failure() 
         .stderr(predicate::str::contains("error:"));
 }

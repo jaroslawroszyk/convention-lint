@@ -80,6 +80,9 @@ jobs:
       - name: Clippy (cargo clippy)
         run: cargo clippy --all-features -- -D warnings
 
+      - name: Self-lint (dogfooding)
+        run: cargo run --bin cargo-convention-lint -- convention-lint
+
   # -------------------------------------------------------------------------
   # Documentation — ensures `cargo doc` is warning-free
   # -------------------------------------------------------------------------
