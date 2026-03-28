@@ -10,6 +10,15 @@ as a Cargo subcommand — or embed as a library in your own tooling.
 
 ---
 
+## Key Features
+
+* 🚀 **High Performance**: Built with the `ignore` crate, using **parallel directory traversal** (multithreaded) just like `ripgrep`.
+* 🙈 **Git-aware**: Automatically respects your **`.gitignore`** rules and skips hidden files/folders by default.
+* 📦 **Monorepo Ready**: Full support for `[workspace.metadata]` to keep rules consistent across all crates in a workspace.
+* 🛠️ **CI Ready**: Exits with non-zero code on violations and uses `rustc`-style error formatting for easy log parsing.
+
+---
+
 ## Installation
 
 ```sh
@@ -28,28 +37,36 @@ cargo convention-lint
 
 ## Quick start
 
-Add a `[package.metadata.convention-lint]` (or `[workspace.metadata.convention-lint]`) section... section to your project's
+Add a `[package.metadata.convention-lint]` (or `[workspace.metadata.convention-lint]`) section to your project's
 `Cargo.toml`.  Each key is a file extension (without `.`) mapped to a
-convention name:
+convention name.
+
+## Workspace Root Example
+Defining rules in the `[workspace]` section is the easiest way to ensure consistency across multiple crates:
+
+```toml
+[workspace.metadata.convention-lint]
+rs    = "snake_case"
+idl   = "snake_case"
+proto = "snake_case"
+
+[workspace.metadata.convention-lint.dirs]
+idl = ["src/idl", "proto"]
+# `rs` has no entry here → the whole project is scanned recursively, respecting .gitignore
+```
+
+## Single Package Example
+For smaller projects, use the `[package]` section:
 
 ```toml
 [package.metadata.convention-lint]
-idl = "snake_case"
-rs  = "CamelCase"
-proto = "snake_case"
-```
+rs = "CamelCase"
 
-Optionally restrict which directories are scanned per extension (paths are
-relative to the manifest):
-
-```toml
 [package.metadata.convention-lint.dirs]
-idl   = ["src/idl", "proto"]
-proto = ["proto"]
-# `rs` has no entry here → the whole project root is scanned
+rs = ["src/models"]
 ```
 
-Then run:
+Then simply run:
 
 ```sh
 cargo convention-lint
@@ -139,10 +156,12 @@ cargo test
 
 ```yaml
 # .github/workflows/ci.yml
-- name: Install convention-lint
-  run: cargo install convention-lint
-
 - name: Check naming conventions
+  uses: taiki-e/install-action@v2
+  with:
+    tool: convention-lint
+
+- name: Run linter
   run: cargo convention-lint
 ```
 
@@ -168,16 +187,20 @@ convention-lint = "0.1"
 
 ```rust
 use convention_lint::{config::load_config, lint::run};
+use std::path::Path;
 
 fn main() {
-    let cfg = load_config(std::path::Path::new("Cargo.toml")).unwrap();
-    let violations = run(&cfg, std::path::Path::new("."));
+    let manifest = Path::new("Cargo.toml");
+    let cfg = load_config(manifest).expect("Failed to load config");
+    let violations = run(&cfg, Path::new("."));
 
     for v in &violations {
         eprintln!("{v}");
     }
 
-    std::process::exit(if violations.is_empty() { 0 } else { 1 });
+    if !violations.is_empty() {
+        std::process::exit(1);
+    }
 }
 ```
 
@@ -197,10 +220,5 @@ reference.
 ---
 
 ## License
-
-Licensed under either of
-
 - [MIT](LICENSE-MIT)
 - [Apache 2.0](LICENSE-APACHE)
-
-at your option.

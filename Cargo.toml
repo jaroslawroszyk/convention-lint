@@ -24,6 +24,8 @@ name = "cargo-convention-lint"
 path = "src/main.rs"
 
 [dependencies]
+ignore = "0.4.25"
+serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "1"
 toml = "0.8"
 walkdir = "2"

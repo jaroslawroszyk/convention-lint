@@ -23,13 +23,13 @@ fn main() {
     let project_root = if manifest_path.is_absolute() {
         manifest_path
             .parent()
-            .unwrap_or(Path::new("."))
+            .unwrap_or_else(|| Path::new("."))
             .to_path_buf()
     } else {
         manifest_path
             .parent()
             .filter(|p| !p.as_os_str().is_empty())
-            .unwrap_or(Path::new("."))
+            .unwrap_or_else(|| Path::new("."))
             .to_path_buf()
     };
 

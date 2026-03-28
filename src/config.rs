@@ -14,12 +14,45 @@
 //! idl = ["src/idl"]
 //! ```
 
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr as _;
 
 use crate::convention::Convention;
 use crate::error::Error;
+
+#[derive(Debug, Deserialize)]
+struct CargoManifest {
+    package: Option<PackageSection>,
+    workspace: Option<WorkspaceSection>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PackageSection {
+    metadata: Option<MetadataSection>,
+}
+
+#[derive(Debug, Deserialize)]
+struct WorkspaceSection {
+    metadata: Option<MetadataSection>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MetadataSection {
+    #[serde(rename = "convention-lint")]
+    convention_lint: Option<ConventionLintTable>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ConventionLintTable {
+    /// Przechwytuje wszystko co nie jest zarezerwowane (np. idl, rs)
+    #[serde(flatten)]
+    rules: HashMap<String, String>,
+
+    /// Opcjonalna tabela z listą katalogów
+    dirs: Option<HashMap<String, Vec<PathBuf>>>,
+}
 
 // ---------------------------------------------------------------------------
 // Config
@@ -37,12 +70,12 @@ use crate::error::Error;
 /// let cfg = load_config(std::path::Path::new("Cargo.toml")).unwrap();
 /// println!("{} rule(s) loaded", cfg.rules.len());
 /// ```
+
 #[derive(Debug, Default)]
 pub struct Config {
     /// Maps a file extension (without leading `.`) to the required naming
     /// convention.
     pub rules: HashMap<String, Convention>,
-
     /// Maps a file extension to the list of directories that should be
     /// scanned.  Paths are relative to the project root.  When an extension
     /// has no entry here the entire project root is scanned recursively.
@@ -77,57 +110,39 @@ pub fn load_config(manifest_path: &Path) -> Result<Config, Error> {
         source,
     })?;
 
-    let doc: toml::Value = toml::from_str(&content).map_err(|source| Error::Toml {
+    let manifest: CargoManifest = toml::from_str(&content).map_err(|source| Error::Toml {
         path: manifest_path.to_owned(),
         source,
     })?;
 
-    let section = doc
-        .get("package")
-        .and_then(|p| p.get("metadata"))
-        .and_then(|m| m.get("convention-lint"))
+    let raw_lint = manifest
+        .package
+        .and_then(|p| p.metadata)
+        .and_then(|m| m.convention_lint)
         .or_else(|| {
-            doc.get("workspace")
-                .and_then(|w| w.get("metadata"))
-                .and_then(|m| m.get("convention-lint"))
+            manifest
+                .workspace
+                .and_then(|w| w.metadata)
+                .and_then(|m| m.convention_lint)
         })
         .ok_or_else(|| Error::MissingSection(manifest_path.to_owned()))?;
 
-    let table = section.as_table().ok_or(Error::InvalidSection)?;
+    let mut rules = HashMap::new();
 
-    let mut rules: HashMap<String, Convention> = HashMap::new();
-    let mut dirs: HashMap<String, Vec<PathBuf>> = HashMap::new();
-
-    if let Some(dirs_val) = table.get("dirs") {
-        let dirs_table = dirs_val.as_table().ok_or(Error::InvalidDirsTable)?;
-        for (ext, paths) in dirs_table {
-            let list = paths
-                .as_array()
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_str().map(PathBuf::from))
-                        .collect()
-                })
-                .unwrap_or_default();
-            dirs.insert(ext.clone(), list);
-        }
-    }
-
-    for (key, val) in table {
-        if key == "dirs" {
+    for (ext, raw_conv) in raw_lint.rules {
+        if ext == "dirs" {
             continue;
         }
-        let raw = val
-            .as_str()
-            .ok_or_else(|| Error::InvalidConventionValue { key: key.clone() })?;
 
-        let conv = Convention::from_str(raw).map_err(|_| Error::UnknownConvention {
-            ext: key.clone(),
-            value: raw.to_owned(),
+        let conv = Convention::from_str(&raw_conv).map_err(|_| Error::UnknownConvention {
+            ext: ext.clone(),
+            value: raw_conv,
         })?;
-
-        rules.insert(key.clone(), conv);
+        rules.insert(ext, conv);
     }
 
-    Ok(Config { rules, dirs })
+    Ok(Config {
+        rules,
+        dirs: raw_lint.dirs.unwrap_or_default(),
+    })
 }

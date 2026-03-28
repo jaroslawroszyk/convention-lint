@@ -86,11 +86,28 @@ fn load_config_unknown_convention_returns_error() {
 }
 
 #[test]
-fn load_config_non_string_value_returns_error() {
+fn load_config_non_string_value_returns_toml_error() {
     let dir = TempDir::new().unwrap();
     let manifest = write_manifest(dir.path(), "[package.metadata.convention-lint]\nidl = 42\n");
     let result = load_config(&manifest);
-    assert!(matches!(result, Err(Error::InvalidConventionValue { .. })));
+
+    assert!(matches!(result, Err(Error::Toml { .. })));
+}
+
+#[test]
+fn load_config_from_workspace_metadata() {
+    let dir = TempDir::new().unwrap();
+    let content = r#"
+[workspace]
+members = ["core"]
+[workspace.metadata.convention-lint]
+rs = "snake_case"
+"#;
+    let path = dir.path().join("Cargo.toml");
+    fs::write(&path, content).unwrap();
+
+    let cfg = load_config(&path).expect("Should load from workspace metadata");
+    assert_eq!(cfg.rules.get("rs"), Some(&Convention::SnakeCase));
 }
 
 // ---------------------------------------------------------------------------
@@ -242,8 +259,12 @@ fn run_violation_carries_expected_convention() {
     let violations = run(&cfg, dir.path());
 
     assert_eq!(violations.len(), 1);
-    assert_eq!(violations[0].stem, "my_Service");
-    assert_eq!(violations[0].expected, Convention::SnakeCase);
+    let violation = violations
+        .iter()
+        .find(|v| v.stem == "my_Service")
+        .expect("Violation not found");
+    assert_eq!(violation.stem, "my_Service");
+    assert_eq!(violation.expected, Convention::SnakeCase);
 }
 
 // ---------------------------------------------------------------------------
@@ -323,7 +344,7 @@ fn run_without_dirs_config_scans_whole_project() {
     let violations = run(&cfg, dir.path());
 
     assert_eq!(violations.len(), 1);
-    assert_eq!(violations[0].stem, "BadName");
+    assert!(violations.iter().any(|v| v.stem == "BadName"));
 }
 
 // ---------------------------------------------------------------------------
@@ -393,4 +414,70 @@ fn violation_display_format() {
         s.contains("snake_case"),
         "convention missing from output: {s}"
     );
+}
+
+// ---------------------------------------------------------------------------
+// run — logic & filtering
+// ---------------------------------------------------------------------------
+
+#[test]
+fn run_respects_gitignore() {
+    let dir = TempDir::new().unwrap();
+
+    // KLUCZ: ignore często potrzebuje folderu .git, żeby uznać .gitignore za ważny
+    fs::create_dir(dir.path().join(".git")).unwrap();
+
+    scaffold(dir.path(), &["ignored_File.rs", "valid_file.rs"]);
+    fs::write(dir.path().join(".gitignore"), "ignored_File.rs").unwrap();
+
+    let manifest = write_manifest(
+        dir.path(),
+        "[package.metadata.convention-lint]\nrs = \"snake_case\"\n",
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    assert!(
+        violations.is_empty(),
+        "File in .gitignore should be skipped, but found: {violations:#?}"
+    );
+}
+
+#[test]
+fn run_handles_empty_stems_gracefully() {
+    let dir = TempDir::new().unwrap();
+    scaffold(dir.path(), &[".rs"]);
+
+    let manifest = write_manifest(
+        dir.path(),
+        "[package.metadata.convention-lint]\nrs = \"snake_case\"\n",
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    assert!(violations.is_empty());
+}
+
+#[test]
+fn run_reports_multiple_violations_with_same_stem() {
+    let dir = TempDir::new().unwrap();
+    scaffold(dir.path(), &["a/BadName.rs", "b/BadName.rs"]);
+
+    let manifest = write_manifest(
+        dir.path(),
+        "[package.metadata.convention-lint]\nrs = \"snake_case\"\n",
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    assert_eq!(violations.len(), 2);
+    let paths: Vec<String> = violations
+        .iter()
+        .map(|v| v.path.to_string_lossy().into_owned())
+        .collect();
+    assert!(paths.iter().any(|p| p.contains("a/BadName.rs")));
+    assert!(paths.iter().any(|p| p.contains("b/BadName.rs")));
 }

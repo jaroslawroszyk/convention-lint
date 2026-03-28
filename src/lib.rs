@@ -42,7 +42,6 @@ pub mod convention;
 pub mod error;
 pub mod lint;
 
-// Convenience re-exports at the crate root.
 pub use convention::Convention;
 pub use error::Error;
 pub use lint::Violation;

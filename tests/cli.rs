@@ -171,3 +171,24 @@ fn missing_metadata_section_exits_nonzero() {
         .failure()
         .stderr(predicate::str::contains("error:"));
 }
+
+#[test]
+fn workspace_metadata_cli_test() {
+    let dir = tempfile::tempdir().unwrap();
+    let toml_path = dir.path().join("Cargo.toml");
+    std::fs::write(
+        &toml_path,
+        r#"[workspace]
+[workspace.metadata.convention-lint]
+rs = "snake_case""#,
+    )
+    .unwrap();
+
+    std::fs::write(dir.path().join("BadFile.rs"), "").unwrap();
+
+    linter()
+        .args(["--manifest-path", toml_path.to_str().unwrap()])
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("BadFile.rs"));
+}
