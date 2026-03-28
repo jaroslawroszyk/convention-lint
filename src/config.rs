@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr as _;
 
-use crate::convention::Convention;
+use crate::core::Convention;
 use crate::error::Error;
 
 #[derive(Debug, Deserialize)]
@@ -46,11 +46,8 @@ struct MetadataSection {
 
 #[derive(Debug, Deserialize)]
 struct ConventionLintTable {
-    /// Przechwytuje wszystko co nie jest zarezerwowane (np. idl, rs)
     #[serde(flatten)]
     rules: HashMap<String, String>,
-
-    /// Opcjonalna tabela z listą katalogów
     dirs: Option<HashMap<String, Vec<PathBuf>>>,
 }
 

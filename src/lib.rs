@@ -14,6 +14,17 @@
 //! idl = ["src/idl"]   # optional; omit to scan the whole project
 //! ```
 //!
+//! //! ## Supported conventions
+//!
+//! | Identifier               | Example          |
+//! |--------------------------|------------------|
+//! | `snake_case`             | `my_service`     |
+//! | `CamelCase`              | `MyService`      |
+//! | `PascalCase`             | `MyService`      |
+//! | `camelCase`              | `myService`      |
+//! | `SCREAMING_SNAKE_CASE`   | `MY_SERVICE`     |
+//! | `kebab-case`             | `my-service`     |
+//!
 //! Then invoke the linter as a Cargo subcommand:
 //!
 //! ```sh
@@ -39,6 +50,7 @@
 
 pub mod config;
 pub mod convention;
+pub mod core;
 pub mod error;
 pub mod lint;
 

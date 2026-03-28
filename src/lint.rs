@@ -6,11 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use crate::config::Config;
-use crate::convention::Convention;
-
-// ---------------------------------------------------------------------------
-// Violation
-// ---------------------------------------------------------------------------
+use crate::core::Convention;
 
 /// A single naming violation detected during a lint run.
 ///
@@ -37,10 +33,6 @@ impl fmt::Display for Violation {
         )
     }
 }
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
 
 /// Walk `project_root` according to `config` and return every naming
 /// violation found.
@@ -122,10 +114,6 @@ pub fn run(config: &Config, project_root: &Path) -> Vec<Violation> {
     let final_lock = Arc::try_unwrap(violations).expect("Lock still has multiple owners");
     final_lock.into_inner().expect("Mutex is poisoned")
 }
-
-// ---------------------------------------------------------------------------
-// Private helpers
-// ---------------------------------------------------------------------------
 
 /// Resolve the directories to search for `ext`, falling back to the project
 /// root when no explicit list is configured.
