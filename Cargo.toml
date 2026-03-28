@@ -12,6 +12,12 @@ keywords = ["lint", "naming", "convention", "idl", "cargo"]
 categories = ["development-tools", "command-line-utilities"]
 exclude = ["tests/", ".github/"]
 
+[package.metadata.convention-lint]
+rs = "snake_case"
+
+[package.metadata.convention-lint.dirs]
+rs = ["src/"]
+
 # Invokable as `cargo convention-lint` (cargo subcommand convention)
 [[bin]]
 name = "cargo-convention-lint"
@@ -47,10 +53,3 @@ nursery  = { level = "warn", priority = -1 }
 # or conflict with idiomatic patterns in this codebase.
 module_name_repetitions = "allow"  # e.g. config::Config, error::Error
 missing_errors_doc      = "allow"  # covered by variant-level docs in Error
-
-
-[package.metadata.convention-lint]
-rs = "snake_case"
-
-[package.metadata.convention-lint.dirs]
-rs = ["src/"]
