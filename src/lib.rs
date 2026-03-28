@@ -45,4 +45,4 @@ pub mod lint;
 // Convenience re-exports at the crate root.
 pub use convention::Convention;
 pub use error::Error;
-pub use lint::Violation;
+    pub use lint::Violation;
