@@ -21,7 +21,7 @@ jobs:
       matrix:
         rust:
           - stable
-          - "1.80.0"
+          - "1.85.0"
     steps:
       - uses: actions/checkout@v4
 
