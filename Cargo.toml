@@ -1,17 +1,18 @@
 [package]
 name = "convention-lint"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 description = "File-naming convention linter configurable via Cargo.toml metadata — use as `cargo convention-lint` or embed as a library"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/jaroslawroszyk/convention-lint"
+repository = "https://github.com/roszyk/convention-lint"
 documentation = "https://docs.rs/convention-lint"
-homepage = "https://github.com/jaroslawroszyk/convention-lint"
+homepage = "https://github.com/roszyk/convention-lint"
 keywords = ["lint", "naming", "convention", "idl", "cargo"]
 categories = ["development-tools", "command-line-utilities"]
 exclude = ["tests/", ".github/"]
 
+# Invokable as `cargo convention-lint` (cargo subcommand convention)
 [[bin]]
 name = "cargo-convention-lint"
 path = "src/main.rs"

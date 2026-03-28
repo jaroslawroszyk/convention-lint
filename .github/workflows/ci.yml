@@ -21,7 +21,7 @@ jobs:
       matrix:
         rust:
           - stable
-          - "1.80.0"   # MSRV — edition 2024 requires ≥ 1.80
+          - "1.80.0"
     steps:
       - uses: actions/checkout@v4
 

@@ -1,7 +1,7 @@
 [package]
 name = "fixture-pass"
 version = "0.0.0"
-edition = "2024"
+edition = "2021"
 
 # All files in this fixture conform to the configured conventions.
 # `cargo convention-lint` must exit 0 against this project.

@@ -90,6 +90,49 @@ convention-lint: found 2 naming violation(s)
 
 ---
 
+## Testing
+
+The repository ships two fixture projects under `tests/fixtures/` that double
+as both automated test data and **copy-paste examples** for your own projects:
+
+```
+tests/fixtures/
+├── pass/          ← all files conform → exit 0
+│   ├── Cargo.toml          (idl = "snake_case", rs = "snake_case")
+│   ├── idl/
+│   │   ├── my_service.idl
+│   │   └── order_processor.idl
+│   └── src/
+│       └── my_module.rs
+└── fail/          ← intentional violations → exit 1
+    ├── Cargo.toml          (idl = "snake_case", rs = "CamelCase")
+    ├── idl/
+    │   ├── my_service.idl    ✓
+    │   ├── MyService.idl     ✗  (should be snake_case)
+    │   └── another_Bad.idl   ✗
+    └── src/
+        ├── OrderProcessor.rs ✓
+        └── bad_module.rs     ✗  (should be CamelCase)
+```
+
+Run them manually to see the linter in action:
+
+```sh
+# should print "all files follow configured naming conventions" and exit 0
+cargo run -- convention-lint --manifest-path tests/fixtures/pass/Cargo.toml
+
+# should list violations and exit 1
+cargo run -- convention-lint --manifest-path tests/fixtures/fail/Cargo.toml
+```
+
+The full test suite (unit + integration + CLI + doc-tests):
+
+```sh
+cargo test
+```
+
+---
+
 ## CI integration
 
 ### GitHub Actions

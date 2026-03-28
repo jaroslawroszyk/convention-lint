@@ -1,7 +1,7 @@
 [package]
 name = "fixture-fail"
 version = "0.0.0"
-edition = "2024"
+edition = "2021"
 
 # This fixture intentionally contains naming violations.
 # `cargo convention-lint` must exit 1 and report the bad stems.

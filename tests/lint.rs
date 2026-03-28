@@ -64,7 +64,7 @@ fn load_config_missing_section_returns_error() {
     let dir = TempDir::new().unwrap();
     fs::write(
         dir.path().join("Cargo.toml"),
-        b"[package]\nname=\"x\"\nversion=\"0.1.0\"\nedition=\"2024\"\n",
+        b"[package]\nname=\"x\"\nversion=\"0.1.0\"\nedition=\"2021\"\n",
     )
     .unwrap();
     let result = load_config(&dir.path().join("Cargo.toml"));
