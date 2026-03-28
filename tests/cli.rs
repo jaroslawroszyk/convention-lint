@@ -158,15 +158,16 @@ fn missing_metadata_section_exits_nonzero() {
     use std::fs;
     let dir = tempfile::tempdir().unwrap();
     let empty_toml = dir.path().join("Cargo.toml");
-    
+
     fs::write(
         &empty_toml,
-        "[package]\nname = \"empty\"\nversion = \"0.1.0\""
-    ).unwrap();
+        "[package]\nname = \"empty\"\nversion = \"0.1.0\"",
+    )
+    .unwrap();
 
     linter()
         .args(["--manifest-path", empty_toml.to_str().unwrap()])
         .assert()
-        .failure() 
+        .failure()
         .stderr(predicate::str::contains("error:"));
 }
