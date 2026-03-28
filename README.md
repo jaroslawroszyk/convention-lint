@@ -1,9 +1,10 @@
 # convention-lint
 
-[![Crates.io](https://img.shields.io/crates/v/convention-lint)](https://crates.io/crates/convention-lint)
-[![Docs.rs](https://docs.rs/convention-lint/badge.svg)]((https://docs.rs/crate/convention-lint/latest))
-[![CI](https://github.com/jaroslawroszyk/convention-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/jaroslawroszyk/convention-lint/actions)
-[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](https://github.com/jaroslawroszyk/convention-lint#license)
+[<img alt="github" src="https://img.shields.io/badge/github-roszyk/convention--lint-8da0cb?style=for-the-badge&labelColor=555555&logo=github" height="20">](https://github.com/roszyk/convention-lint)
+[<img alt="crates.io" src="https://img.shields.io/crates/v/convention-lint.svg?style=for-the-badge&color=fc8d62&logo=rust" height="20">](https://crates.io/crates/convention-lint)
+[<img alt="docs.rs" src="https://img.shields.io/badge/docs.rs-convention--lint-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs" height="20">](https://docs.rs/convention-lint)
+[<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/roszyk/convention-lint/ci.yml?branch=main&style=for-the-badge" height="20">](https://github.com/roszyk/convention-lint/actions?query=branch%3Amain)
+[<img alt="license" src="https://img.shields.io/badge/license-MIT%2FApache--2.0-blue?style=for-the-badge" height="20">](#license)
 
 A file-naming convention linter that you configure once in `Cargo.toml` and run
 as a Cargo subcommand — or embed as a library in your own tooling.
