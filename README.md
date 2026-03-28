@@ -1,9 +1,9 @@
 # convention-lint
 
 [![Crates.io](https://img.shields.io/crates/v/convention-lint)](https://crates.io/crates/convention-lint)
-[![docs.rs](https://img.shields.io/docsrs/convention-lint)](https://docs.rs/convention-lint)
-[![CI](https://github.com/roszyk/convention-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/roszyk/convention-lint/actions)
-[![License](https://img.shields.io/crates/l/convention-lint)](LICENSE-MIT)
+[![Docs.rs](https://docs.rs/convention-lint/badge.svg)](https://docs.rs/convention-lint)
+[![CI](https://github.com/jaroslawroszyk/convention-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/jaroslawroszyk/convention-lint/actions)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](https://github.com/TWOJA_NAZWA/convention-lint#license)
 
 A file-naming convention linter that you configure once in `Cargo.toml` and run
 as a Cargo subcommand — or embed as a library in your own tooling.
