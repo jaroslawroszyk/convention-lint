@@ -8,10 +8,10 @@ use std::path::Path;
 
 use tempfile::TempDir;
 
+use convention_lint::Convention;
 use convention_lint::config::load_config;
 use convention_lint::error::Error;
 use convention_lint::lint::run;
-use convention_lint::Convention;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -34,7 +34,7 @@ fn scaffold(root: &Path, paths: &[&str]) {
 /// the `[package.metadata.convention-lint]` section provided as raw TOML.
 fn write_manifest(root: &Path, metadata_section: &str) -> std::path::PathBuf {
     let content = format!(
-        "[package]\nname = \"test\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n{metadata_section}"
+        "[package]\nname = \"test\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n{metadata_section}"
     );
     let path = root.join("Cargo.toml");
     fs::write(&path, content).unwrap();
