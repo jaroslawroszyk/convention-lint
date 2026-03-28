@@ -28,7 +28,6 @@ ignore = "0.4.25"
 serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "1"
 toml = "0.8"
-walkdir = "2"
 
 [dev-dependencies]
 assert_cmd = "2"
