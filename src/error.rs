@@ -20,6 +20,10 @@ pub enum Error {
         source: std::io::Error,
     },
 
+    /// The `dirs` list in a check rule is empty.
+    #[error("the `dirs` list in a convention-lint check cannot be empty")]
+    EmptyDirs,
+
     /// The manifest file contains invalid TOML.
     #[error("cannot parse `{path}`: {source}")]
     Toml {

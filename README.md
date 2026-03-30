@@ -3,7 +3,7 @@
 [<img alt="github" src="https://img.shields.io/badge/github-jaroslawroszyk/convention--lint-8da0cb?style=for-the-badge&labelColor=555555&logo=github" height="20">](https://github.com/jaroslawroszyk/convention-lint)
 [<img alt="crates.io" src="https://img.shields.io/crates/v/convention-lint.svg?style=for-the-badge&color=fc8d62&logo=rust" height="20">](https://crates.io/crates/convention-lint)
 [<img alt="docs.rs" src="https://img.shields.io/badge/docs.rs-convention--lint-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs" height="20">](https://docs.rs/convention-lint)
-[<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/roszyk/convention-lint/ci.yml?branch=main&style=for-the-badge" height="20">](https://github.com/jaroslawroszyk/convention-lint/actions?query=branch%3Amain)
+[<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/jaroslawroszyk/convention-lint/ci.yml?branch=main&style=for-the-badge" height="20">](https://github.com/jaroslawroszyk/convention-lint/actions?query=branch%3Amain)
 [<img alt="license" src="https://img.shields.io/badge/license-MIT%2FApache--2.0-blue?style=for-the-badge" height="20">](#license)
 
 A file-naming convention linter for Rust projects. Configure it once in `Cargo.toml`, run it as a Cargo subcommand.
@@ -43,12 +43,13 @@ format  = "snake_case"
 
 | Field       | Required | Default | Description |
 |-------------|----------|---------|-------------|
-| `dirs`      | yes      | —       | Directories to scan. Supports glob patterns (`*`, `**`, `?`). |
+| `dirs`      | yes      | —       | Directories to scan. Supports glob patterns (`*`, `**`, `?`) **Cannot be empty.**. |
 | `include`   | no       | all files | Glob patterns for files to check (e.g. `["*.rs", "*.py"]`). |
 | `exclude`   | no       | none    | Glob patterns for files to skip (takes priority over `include`). |
 | `format`    | yes      | —       | Naming convention to enforce (see [supported conventions](#supported-conventions)). |
 | `recursive` | no       | `true`  | When `false`, only direct children of each dir are checked. |
 
+> Note on Filtering: If a file matches both an include and an exclude pattern, it will be skipped.
 ### Include / exclude filtering
 
 **Only include** — check only `.rs` files:
@@ -75,9 +76,33 @@ format  = "PascalCase"
 ```toml
 [[package.metadata.convention-lint.checks]]
 dirs    = ["other/dir3"]
-exclude = ["the-only-exclude.txt"]
+exclude = ["**/the-only-exclude.txt"]
 format  = "PascalCase"
 ```
+
+### Pattern Matching Rules
+
+Patterns are matched against the **full relative path** from the project root. To ensure your filters work as expected, follow these rules:
+
+| Pattern | Match Type | Description |
+|---------|------------|-------------|
+| `*.rs` | **Extension** | Any `.rs` file in any directory. |
+| `generated.rs` | **Exact File** | Only `generated.rs` in the project root. |
+| `**/generated.rs` | **Floating File** | Any file named `generated.rs` anywhere in the project. |
+| `**/tests/**` | **Directory** | **Entire directory** and all its contents (recursive). |
+| `core/cli/src/**` | **Subtree** | Everything inside a specific path. |
+
+> **Pro Tip:** If you want to exclude a whole folder, always end the pattern with `/**`. A pattern like `exclude = ["path/to/dir"]` matches only the directory itself, not the files inside it.
+
+#### Example: Excluding a module
+To skip an entire crate or a specific deep directory:
+
+```toml
+[[workspace.metadata.convention-lint.checks]]
+dirs = ["**/*/*src/"]
+# This ensures every file inside this path is ignored
+exclude = ["**/core/cli/src/**"]
+format = "snake_case"
 
 ### Globbed directories
 
@@ -230,7 +255,7 @@ The crate also works as a library if you want to embed it in a build script or a
 
 ```toml
 [dependencies]
-convention-lint = "0.2"
+convention-lint = "0.3"
 ```
 
 ```rust

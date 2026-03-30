@@ -39,6 +39,26 @@ fn write_manifest(root: &Path, metadata_section: &str) -> std::path::PathBuf {
 // ---------------------------------------------------------------------------
 
 #[test]
+fn load_config_empty_dirs_list_returns_invalid_section_error() {
+    let dir = TempDir::new().unwrap();
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = []
+include = ["*.rs"]
+format = "snake_case"
+"#,
+    );
+
+    let result = load_config(&manifest);
+    assert!(
+        matches!(result, Err(Error::EmptyDirs)),
+        "Expected EmptyDirs error for empty dirs list, got: {result:?}"
+    );
+}
+
+#[test]
 fn load_config_missing_file_returns_io_error() {
     let result = load_config(Path::new("/nonexistent/Cargo.toml"));
     assert!(matches!(result, Err(Error::Io { .. })));
@@ -593,7 +613,6 @@ format = "snake_case"
 }
 
 #[test]
-#[ignore = "Resolving globs in 'dirs' is planned for Issue #2 but not yet implemented"]
 fn run_resolves_glob_patterns_in_dirs() {
     let dir = TempDir::new().unwrap();
     scaffold(
@@ -615,6 +634,169 @@ format = "snake_case"
     let violations = run(&cfg, dir.path());
 
     assert_eq!(violations.len(), 2);
+}
+
+#[test]
+fn run_glob_dirs_with_double_star() {
+    let dir = TempDir::new().unwrap();
+    scaffold(
+        dir.path(),
+        &[
+            "src/flow/a/BadName.rs",
+            "src/deep/flow/BadName.rs",
+            "src/other/good_name.rs",
+        ],
+    );
+
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["src/**/flow"]
+include = ["*.rs"]
+format = "snake_case"
+"#,
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    let stems: Vec<&str> = violations.iter().map(|v| v.stem.as_str()).collect();
+    assert!(stems.contains(&"BadName"), "expected BadName in {stems:?}");
+    assert!(
+        stems.len() == 2,
+        "expected exactly 2 violations, got: {violations:#?}"
+    );
+    assert!(
+        !stems.contains(&"good_name"),
+        "good_name.rs is outside glob-matched dirs"
+    );
+}
+
+#[test]
+fn run_glob_dirs_no_match_produces_no_violations() {
+    let dir = TempDir::new().unwrap();
+    scaffold(dir.path(), &["unrelated/BadName.rs"]);
+
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["packages/*/src"]
+include = ["*.rs"]
+format = "snake_case"
+"#,
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    assert!(
+        violations.is_empty(),
+        "glob matched nothing, expected no violations, got: {violations:#?}"
+    );
+}
+
+#[test]
+fn run_glob_dirs_with_recursive_false() {
+    let dir = TempDir::new().unwrap();
+    scaffold(
+        dir.path(),
+        &[
+            "packages/auth/tests/BadTop.rs",
+            "packages/auth/tests/sub/BadNested.rs",
+            "packages/ui/tests/BadTop.rs",
+            "packages/ui/tests/sub/BadNested.rs",
+        ],
+    );
+
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["packages/*/tests"]
+include = ["*.rs"]
+format = "snake_case"
+recursive = false
+"#,
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    let stems: Vec<&str> = violations.iter().map(|v| v.stem.as_str()).collect();
+    assert!(
+        stems.contains(&"BadTop"),
+        "expected top-level BadTop in {stems:?}"
+    );
+    assert!(
+        !stems.contains(&"BadNested"),
+        "BadNested is in a subdirectory and should be skipped with recursive=false"
+    );
+    assert_eq!(violations.len(), 2, "one BadTop per matched package dir");
+}
+
+#[test]
+fn run_glob_dirs_question_mark_wildcard() {
+    let dir = TempDir::new().unwrap();
+    scaffold(
+        dir.path(),
+        &[
+            "mod_a/BadName.rs",
+            "mod_b/BadName.rs",
+            "module/good_name.rs",
+        ],
+    );
+
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["mod_?"]
+include = ["*.rs"]
+format = "snake_case"
+"#,
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    assert_eq!(
+        violations.len(),
+        2,
+        "? should match mod_a and mod_b but not module, got: {violations:#?}"
+    );
+}
+
+#[test]
+fn run_glob_dirs_mixed_literal_and_glob() {
+    let dir = TempDir::new().unwrap();
+    scaffold(
+        dir.path(),
+        &[
+            "exact/BadExact.rs",
+            "packages/auth/src/BadGlob.rs",
+            "packages/ui/src/BadGlob.rs",
+        ],
+    );
+
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["exact", "packages/*/src"]
+include = ["*.rs"]
+format = "snake_case"
+"#,
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    let stems: Vec<&str> = violations.iter().map(|v| v.stem.as_str()).collect();
+    assert!(stems.contains(&"BadExact"), "literal dir missed");
+    assert!(stems.contains(&"BadGlob"), "glob dir missed");
+    assert_eq!(violations.len(), 3);
 }
 
 #[test]

@@ -76,8 +76,9 @@ pub struct ResolvedRule {
     pub matcher: Matcher,
     /// The naming convention to be enforced for matched files.
     pub convention: Convention,
-    /// Whether to scan directories recursively (currently always true, planned for future support of non-recursive rules)
-    pub recursive: bool, // TODO: issue #2 - Add support for non-recursive rules in a future issue (e.g. via `recursive = false` flag in the config
+    /// Whether to scan directories recursively (`true` by default).
+    /// When `false`, only direct children of each directory are checked.
+    pub recursive: bool,
 }
 
 /// Loads the linter configuration from the specified `Cargo.toml` manifest.
@@ -127,6 +128,10 @@ pub fn load_config(manifest_path: &Path) -> Result<Config, Error> {
 
     let mut rules = Vec::new();
     for raw in all_raw_checks {
+        if raw.dirs.is_empty() {
+            return Err(Error::EmptyDirs);
+        }
+
         let error_context = if raw.include.is_empty() {
             "all files".to_string()
         } else {
@@ -146,7 +151,7 @@ pub fn load_config(manifest_path: &Path) -> Result<Config, Error> {
             dirs: raw.dirs,
             matcher,
             convention,
-            recursive: raw.recursive, // TODO: issue #2 - Add support for non-recursive rules in a future issue (e.g. via `recursive = false` flag in the config
+            recursive: raw.recursive,
         });
     }
 
