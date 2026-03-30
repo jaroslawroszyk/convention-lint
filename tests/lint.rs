@@ -3,15 +3,11 @@
 //! Each test builds a real filesystem layout inside a [`tempfile::TempDir`]
 //! so the linter runs against actual files rather than mocked data.
 
+use convention_lint::{Convention, Violation, config::load_config, error::Error, lint::run};
 use std::fs;
 use std::path::Path;
-
+use std::path::PathBuf;
 use tempfile::TempDir;
-
-use convention_lint::Convention;
-use convention_lint::config::load_config;
-use convention_lint::error::Error;
-use convention_lint::lint::run;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -734,9 +730,6 @@ format = "snake_case"
 
 #[test]
 fn violation_display_format() {
-    use convention_lint::lint::Violation;
-    use std::path::PathBuf;
-
     let v = Violation {
         path: PathBuf::from("src/idl/BadName.idl"),
         stem: "BadName".to_owned(),

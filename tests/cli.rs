@@ -31,6 +31,7 @@
 
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
+use std::fs;
 use std::process::Command;
 
 // ---------------------------------------------------------------------------
@@ -158,7 +159,6 @@ fn missing_manifest_exits_nonzero_with_message() {
 
 #[test]
 fn missing_metadata_section_exits_nonzero() {
-    use std::fs;
     let dir = tempfile::tempdir().unwrap();
     let empty_toml = dir.path().join("Cargo.toml");
 

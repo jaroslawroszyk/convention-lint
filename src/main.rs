@@ -1,9 +1,8 @@
 //! CLI binary for `cargo convention-lint`. See the [`convention_lint`] crate for the full API.
-use std::path::{Path, PathBuf};
-use std::process;
-
 use convention_lint::config::load_config;
 use convention_lint::lint::run;
+use std::path::{Path, PathBuf};
+use std::process;
 
 fn main() {
     let mut args: Vec<String> = std::env::args().skip(1).collect();

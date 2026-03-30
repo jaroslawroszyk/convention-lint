@@ -1,12 +1,11 @@
 //! Core linting logic — filesystem walk and violation collection.
 
+use crate::config::Config;
+use crate::core::Convention;
 use ignore::WalkBuilder;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-
-use crate::config::Config;
-use crate::core::Convention;
 
 /// A single naming violation detected during a lint run.
 #[derive(Debug, Clone, PartialEq, Eq)]

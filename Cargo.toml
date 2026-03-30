@@ -20,7 +20,6 @@ rs = "snake_case"
 [package.metadata.convention-lint.dirs]
 rs = ["src/"]
 
-
 [[bin]]
 name = "cargo-convention-lint"
 path = "src/main.rs"

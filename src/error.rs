@@ -1,7 +1,6 @@
 //! Error types for `convention-lint`.
 
 use std::path::PathBuf;
-
 use thiserror::Error;
 
 /// All errors that `convention-lint` can produce.
