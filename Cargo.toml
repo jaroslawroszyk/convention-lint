@@ -14,11 +14,10 @@ keywords = ["lint", "naming", "convention", "cargo", "monorepo"]
 categories = ["development-tools", "command-line-utilities", "rust-patterns"]
 exclude = ["tests/", ".github/"]
 
-[package.metadata.convention-lint]
-rs = "snake_case"
-
-[package.metadata.convention-lint.dirs]
-rs = ["src/"]
+[[package.metadata.convention-lint.checks]]
+dirs = ["src"]
+include = ["*.rs"]
+format = "snake_case"
 
 [[bin]]
 name = "cargo-convention-lint"
