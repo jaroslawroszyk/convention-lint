@@ -27,7 +27,7 @@ fn scaffold(root: &Path, paths: &[&str]) {
 /// Write a minimal `Cargo.toml`-style manifest to `root/Cargo.toml` with the given metadata section.
 fn write_manifest(root: &Path, metadata_section: &str) -> std::path::PathBuf {
     let content = format!(
-        "[package]\nname = \"test\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n{metadata_section}"
+        "[package]\nname = \"test\"\nversion = \"0.3.0\"\nedition = \"2024\"\n\n{metadata_section}"
     );
     let path = root.join("Cargo.toml");
     fs::write(&path, content).unwrap();
@@ -144,7 +144,7 @@ fn load_config_merges_package_and_workspace_rules() {
     let content = r#"
 [package]
 name = "combined-test"
-version = "0.1.0"
+version = "0.3.0"
 
 [[package.metadata.convention-lint.checks]]
 dirs = ["idl"]
@@ -187,7 +187,7 @@ fn load_config_fails_when_no_metadata_anywhere() {
     let content = r#"
 [package]
 name = "empty-test"
-version = "0.1.0"
+version = "0.3.0"
 [workspace]
 "#;
     let path = dir.path().join("Cargo.toml");

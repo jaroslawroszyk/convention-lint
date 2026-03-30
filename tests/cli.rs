@@ -164,7 +164,7 @@ fn missing_metadata_section_exits_nonzero() {
 
     fs::write(
         &empty_toml,
-        "[package]\nname = \"empty\"\nversion = \"0.1.0\"",
+        "[package]\nname = \"empty\"\nversion = \"0.3.0\"",
     )
     .unwrap();
 
