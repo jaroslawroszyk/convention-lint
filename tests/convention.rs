@@ -1,10 +1,11 @@
 //! Unit tests for [`Convention`] — parsing, display, and stem validation.
 
-use convention_lint::convention::{Convention, UnknownConvention};
-
 // ---------------------------------------------------------------------------
 // FromStr
 // ---------------------------------------------------------------------------
+
+use convention_lint::Convention;
+use convention_lint::core::UnknownConvention;
 
 #[test]
 fn parse_all_known_variants() {

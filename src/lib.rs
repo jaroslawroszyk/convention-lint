@@ -32,6 +32,19 @@
 //! | `format` | **Yes** | — | Convention to enforce: `snake_case`, `CamelCase`, `camelCase`, `SCREAMING_SNAKE_CASE`, `kebab-case`. |
 //! | `recursive` | No | `true` | If `false`, the linter won't enter subdirectories. |
 //!
+//! ### Pattern Matching Rules
+//!
+//! Patterns in `include` and `exclude` are matched against the **full relative path** //! from the project root.
+//!
+//! | Pattern | Match Type | Description |
+//! |---------|------------|-------------|
+//! | `*.rs` | Extension | Any `.rs` file in any directory. |
+//! | `generated.rs` | Exact File | Only `generated.rs` in the project root. |
+//! | `**/generated.rs` | Floating File | Any file named `generated.rs` anywhere in the project. |
+//! | `**/tests/**` | Directory | **Entire directory** and all its contents. |
+//!
+//! **Note:** To exclude an entire directory, always end the pattern with `/**`.
+//!
 //! ## Supported Conventions
 //!
 //! | Identifier | Example |
@@ -79,11 +92,10 @@
 //! ```
 
 pub mod config;
-pub mod convention;
 pub mod core;
 pub mod error;
 pub mod lint;
 
-pub use convention::Convention;
-pub use error::Error;
-pub use lint::Violation;
+pub use crate::core::Convention;
+pub use crate::error::Error;
+pub use crate::lint::Violation;
