@@ -49,7 +49,7 @@ fn main() {
     let violations = run(&config, &project_root);
 
     for v in &violations {
-        println!("{v}");
+        eprintln!("{v}");
     }
 
     if violations.is_empty() {

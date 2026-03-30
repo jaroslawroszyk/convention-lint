@@ -18,8 +18,6 @@ use convention_lint::lint::run;
 // ---------------------------------------------------------------------------
 
 /// Create a directory tree and write files.
-///
-/// `paths` is a list of relative paths; directories are created automatically.
 fn scaffold(root: &Path, paths: &[&str]) {
     for rel in paths {
         let abs = root.join(rel);
@@ -30,8 +28,7 @@ fn scaffold(root: &Path, paths: &[&str]) {
     }
 }
 
-/// Write a minimal `Cargo.toml`-style manifest to `root/Cargo.toml` with
-/// the `[package.metadata.convention-lint]` section provided as raw TOML.
+/// Write a minimal `Cargo.toml`-style manifest to `root/Cargo.toml` with the given metadata section.
 fn write_manifest(root: &Path, metadata_section: &str) -> std::path::PathBuf {
     let content = format!(
         "[package]\nname = \"test\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n{metadata_section}"
@@ -76,7 +73,12 @@ fn load_config_unknown_convention_returns_error() {
     let dir = TempDir::new().unwrap();
     let manifest = write_manifest(
         dir.path(),
-        "[package.metadata.convention-lint]\nidl = \"WrongCase\"\n",
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["src"]
+include = ["*.idl"]
+format = "WrongCase"
+"#,
     );
     let result = load_config(&manifest);
     assert!(
@@ -88,9 +90,15 @@ fn load_config_unknown_convention_returns_error() {
 #[test]
 fn load_config_non_string_value_returns_toml_error() {
     let dir = TempDir::new().unwrap();
-    let manifest = write_manifest(dir.path(), "[package.metadata.convention-lint]\nidl = 42\n");
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["src"]
+format = 42
+"#,
+    );
     let result = load_config(&manifest);
-
     assert!(matches!(result, Err(Error::Toml { .. })));
 }
 
@@ -100,14 +108,77 @@ fn load_config_from_workspace_metadata() {
     let content = r#"
 [workspace]
 members = ["core"]
-[workspace.metadata.convention-lint]
-rs = "snake_case"
+
+[[workspace.metadata.convention-lint.checks]]
+dirs = ["src"]
+include = ["*.rs"]
+format = "snake_case"
 "#;
     let path = dir.path().join("Cargo.toml");
     fs::write(&path, content).unwrap();
 
     let cfg = load_config(&path).expect("Should load from workspace metadata");
-    assert_eq!(cfg.rules.get("rs"), Some(&Convention::SnakeCase));
+    assert_eq!(cfg.rules.len(), 1);
+    assert_eq!(cfg.rules[0].convention, Convention::SnakeCase);
+}
+
+#[test]
+fn load_config_merges_package_and_workspace_rules() {
+    let dir = TempDir::new().unwrap();
+    let content = r#"
+[package]
+name = "combined-test"
+version = "0.1.0"
+
+[[package.metadata.convention-lint.checks]]
+dirs = ["idl"]
+include = ["*.idl"]
+format = "snake_case"
+
+[workspace]
+[[workspace.metadata.convention-lint.checks]]
+dirs = ["src"]
+include = ["*.rs"]
+format = "CamelCase"
+"#;
+    let path = dir.path().join("Cargo.toml");
+    std::fs::write(&path, content).unwrap();
+
+    let cfg = load_config(&path).expect("Should load combined metadata");
+
+    assert_eq!(
+        cfg.rules.len(),
+        2,
+        "Should have merged 1 package rule and 1 workspace rule"
+    );
+
+    let has_snake = cfg
+        .rules
+        .iter()
+        .any(|r| r.convention == Convention::SnakeCase);
+    let has_camel = cfg
+        .rules
+        .iter()
+        .any(|r| r.convention == Convention::CamelCase);
+
+    assert!(has_snake, "Missing snake_case rule from package");
+    assert!(has_camel, "Missing CamelCase rule from workspace");
+}
+
+#[test]
+fn load_config_fails_when_no_metadata_anywhere() {
+    let dir = TempDir::new().unwrap();
+    let content = r#"
+[package]
+name = "empty-test"
+version = "0.1.0"
+[workspace]
+"#;
+    let path = dir.path().join("Cargo.toml");
+    std::fs::write(&path, content).unwrap();
+
+    let result = load_config(&path);
+    assert!(matches!(result, Err(Error::MissingSection(_))));
 }
 
 // ---------------------------------------------------------------------------
@@ -120,25 +191,28 @@ fn load_config_parses_rules_and_dirs() {
     let manifest = write_manifest(
         dir.path(),
         r#"
-[package.metadata.convention-lint]
-idl = "snake_case"
-rs  = "CamelCase"
+[[package.metadata.convention-lint.checks]]
+dirs = ["src/idl", "proto"]
+include = ["*.idl"]
+format = "snake_case"
 
-[package.metadata.convention-lint.dirs]
-idl = ["src/idl", "proto"]
+[[package.metadata.convention-lint.checks]]
+dirs = ["src"]
+include = ["*.rs"]
+format = "CamelCase"
 "#,
     );
 
     let cfg = load_config(&manifest).unwrap();
 
-    assert_eq!(cfg.rules.get("idl"), Some(&Convention::SnakeCase));
-    assert_eq!(cfg.rules.get("rs"), Some(&Convention::CamelCase));
-    assert_eq!(cfg.rules.get("proto"), None);
+    assert_eq!(cfg.rules.len(), 2);
+    assert_eq!(cfg.rules[0].convention, Convention::SnakeCase);
+    assert_eq!(cfg.rules[0].dirs.len(), 2);
+    assert!(cfg.rules[0].dirs.iter().any(|p| p.ends_with("src/idl")));
+    assert!(cfg.rules[0].dirs.iter().any(|p| p.ends_with("proto")));
 
-    let idl_dirs = cfg.dirs.get("idl").unwrap();
-    assert_eq!(idl_dirs.len(), 2);
-    assert!(idl_dirs.iter().any(|p| p.ends_with("src/idl")));
-    assert!(idl_dirs.iter().any(|p| p.ends_with("proto")));
+    assert_eq!(cfg.rules[1].convention, Convention::CamelCase);
+    assert_eq!(cfg.rules[1].dirs.len(), 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -155,11 +229,10 @@ fn run_all_valid_produces_no_violations() {
     let manifest = write_manifest(
         dir.path(),
         r#"
-[package.metadata.convention-lint]
-idl = "snake_case"
-
-[package.metadata.convention-lint.dirs]
-idl = ["src/idl"]
+[[package.metadata.convention-lint.checks]]
+dirs = ["src/idl"]
+include = ["*.idl"]
+format = "snake_case"
 "#,
     );
 
@@ -191,11 +264,10 @@ fn run_detects_bad_stems() {
     let manifest = write_manifest(
         dir.path(),
         r#"
-[package.metadata.convention-lint]
-idl = "snake_case"
-
-[package.metadata.convention-lint.dirs]
-idl = ["idl"]
+[[package.metadata.convention-lint.checks]]
+dirs = ["idl"]
+include = ["*.idl"]
+format = "snake_case"
 "#,
     );
 
@@ -229,11 +301,10 @@ fn run_violation_paths_are_relative_to_project_root() {
     let manifest = write_manifest(
         dir.path(),
         r#"
-[package.metadata.convention-lint]
-idl = "snake_case"
-
-[package.metadata.convention-lint.dirs]
-idl = ["src/idl"]
+[[package.metadata.convention-lint.checks]]
+dirs = ["src/idl"]
+include = ["*.idl"]
+format = "snake_case"
 "#,
     );
 
@@ -241,7 +312,6 @@ idl = ["src/idl"]
     let violations = run(&cfg, dir.path());
 
     assert_eq!(violations.len(), 1);
-    // path must be relative, not absolute
     assert!(violations[0].path.is_relative());
     assert_eq!(violations[0].path, Path::new("src/idl/BadName.idl"));
 }
@@ -249,10 +319,15 @@ idl = ["src/idl"]
 #[test]
 fn run_violation_carries_expected_convention() {
     let dir = TempDir::new().unwrap();
-    scaffold(dir.path(), &["my_Service.idl"]);
+    scaffold(dir.path(), &["src/my_Service.idl"]);
     let manifest = write_manifest(
         dir.path(),
-        "[package.metadata.convention-lint]\nidl = \"snake_case\"\n",
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["."]
+include = ["*.idl"]
+format = "snake_case"
+"#,
     );
 
     let cfg = load_config(&manifest).unwrap();
@@ -268,17 +343,187 @@ fn run_violation_carries_expected_convention() {
 }
 
 // ---------------------------------------------------------------------------
+// run — include/exclude filtering
+// ---------------------------------------------------------------------------
+
+#[test]
+fn run_include_only_filters_by_glob() {
+    let dir = TempDir::new().unwrap();
+    scaffold(
+        dir.path(),
+        &[
+            "some/dir/goodFile.rs",
+            "some/dir/BadFile.py", // not in include → ignored
+        ],
+    );
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["some/dir"]
+include = ["*.rs"]
+format = "camelCase"
+"#,
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    assert!(
+        !violations
+            .iter()
+            .map(|v| v.stem.as_str())
+            .any(|x| x == "BadFile"),
+        "BadFile.py should not be checked (not in include)"
+    );
+    assert!(
+        violations.is_empty(),
+        "goodFile.rs is valid camelCase, expected no violations, got: {violations:#?}"
+    );
+}
+
+#[test]
+fn run_include_and_exclude_filters_correctly() {
+    let dir = TempDir::new().unwrap();
+    scaffold(
+        dir.path(),
+        &[
+            "other/dir/BadName.py",
+            "other/dir/AnotherBad.sh",
+            "other/dir/__init__.py", // excluded
+            "other/dir/readme.txt",  // not in include
+        ],
+    );
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["other/dir"]
+include = ["*.py", "*.sh"]
+exclude = ["**/__init__.py"]
+format = "PascalCase"
+"#,
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    let stems: Vec<&str> = violations.iter().map(|v| v.stem.as_str()).collect();
+    assert!(
+        !stems.contains(&"__init__"),
+        "__init__.py should be excluded"
+    );
+    assert!(
+        !stems.contains(&"readme"),
+        "readme.txt should not be checked (not in include)"
+    );
+    assert!(
+        violations.is_empty(),
+        "BadName and AnotherBad are valid PascalCase, got: {violations:#?}"
+    );
+}
+
+#[test]
+fn run_exclude_only_matches_all_except_excluded() {
+    let dir = TempDir::new().unwrap();
+    scaffold(
+        dir.path(),
+        &[
+            "other/dir3/GoodFile.txt",
+            "other/dir3/the-only-exclude.txt", // excluded
+            "other/dir3/bad_file.rs",          // no include → matches all
+        ],
+    );
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["other/dir3"]
+exclude = ["**/the-only-exclude.txt"]
+format = "PascalCase"
+"#,
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    let stems: Vec<&str> = violations.iter().map(|v| v.stem.as_str()).collect();
+    assert!(
+        !violations
+            .iter()
+            .any(|v| v.path.to_string_lossy().contains("the-only-exclude.txt")),
+        "the-only-exclude.txt should be excluded"
+    );
+    assert!(
+        stems.contains(&"bad_file"),
+        "bad_file.rs should be a PascalCase violation, got: {stems:?}"
+    );
+    assert!(
+        !stems.contains(&"GoodFile"),
+        "GoodFile.txt is valid PascalCase"
+    );
+}
+
+#[test]
+fn run_exclude_matches_exact_relative_path() {
+    let dir = TempDir::new().unwrap();
+    scaffold(
+        dir.path(),
+        &["core/cli/src/foo-case.rs", "other/src/foo-case.rs"],
+    );
+
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["."]
+include = ["*.rs"]
+exclude = ["core/cli/src/foo-case.rs"]
+format = "snake_case"
+"#,
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    assert_eq!(
+        violations.len(),
+        1,
+        "Should find exactly 1 violation, got: {violations:#?}"
+    );
+
+    assert_eq!(
+        violations[0].path,
+        Path::new("other/src/foo-case.rs"),
+        "The violation should come from the non-excluded path"
+    );
+
+    let stems: Vec<&str> = violations.iter().map(|v| v.stem.as_str()).collect();
+    assert!(
+        !stems.iter().any(|_s| violations[0]
+            .path
+            .to_string_lossy()
+            .contains("core/cli/src")),
+        "The file core/cli/src/foo-case.rs should have been excluded"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // run — extension filtering
 // ---------------------------------------------------------------------------
 
 #[test]
 fn run_ignores_files_with_different_extension() {
     let dir = TempDir::new().unwrap();
-    // Only rule is for `.idl`; the `.rs` file has a bad stem but must be ignored
     scaffold(dir.path(), &["BadName.rs", "GoodEnough.idl"]);
     let manifest = write_manifest(
         dir.path(),
-        "[package.metadata.convention-lint]\nidl = \"CamelCase\"\n",
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["."]
+include = ["*.idl"]
+format = "CamelCase"
+"#,
     );
 
     let cfg = load_config(&manifest).unwrap();
@@ -307,11 +552,10 @@ fn run_only_scans_configured_dirs() {
     let manifest = write_manifest(
         dir.path(),
         r#"
-[package.metadata.convention-lint]
-idl = "snake_case"
-
-[package.metadata.convention-lint.dirs]
-idl = ["src/idl"]
+[[package.metadata.convention-lint.checks]]
+dirs = ["src/idl"]
+include = ["*.idl"]
+format = "snake_case"
 "#,
     );
 
@@ -325,7 +569,7 @@ idl = ["src/idl"]
 }
 
 #[test]
-fn run_without_dirs_config_scans_whole_project() {
+fn run_with_root_dir_scans_whole_project() {
     let dir = TempDir::new().unwrap();
     scaffold(
         dir.path(),
@@ -337,7 +581,12 @@ fn run_without_dirs_config_scans_whole_project() {
     );
     let manifest = write_manifest(
         dir.path(),
-        "[package.metadata.convention-lint]\nidl = \"snake_case\"\n",
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["."]
+include = ["*.idl"]
+format = "snake_case"
+"#,
     );
 
     let cfg = load_config(&manifest).unwrap();
@@ -345,6 +594,85 @@ fn run_without_dirs_config_scans_whole_project() {
 
     assert_eq!(violations.len(), 1);
     assert!(violations.iter().any(|v| v.stem == "BadName"));
+}
+
+#[test]
+#[ignore = "Resolving globs in 'dirs' is planned for Issue #2 but not yet implemented"]
+fn run_resolves_glob_patterns_in_dirs() {
+    let dir = TempDir::new().unwrap();
+    scaffold(
+        dir.path(),
+        &["packages/auth/src/BadName.rs", "packages/ui/src/BadName.rs"],
+    );
+
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["packages/*/src"]
+include = ["*.rs"]
+format = "snake_case"
+"#,
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    assert_eq!(violations.len(), 2);
+}
+
+#[test]
+fn run_with_recursive_false_only_checks_top_level() {
+    let dir = TempDir::new().unwrap();
+    scaffold(dir.path(), &["top_level_Bad.rs", "subdir/nested_Bad.rs"]);
+
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["."]
+include = ["*.rs"]
+format = "snake_case"
+recursive = false
+"#,
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    assert_eq!(
+        violations.len(),
+        1,
+        "Should only find 1 violation in top-level directory"
+    );
+    assert_eq!(violations[0].stem, "top_level_Bad");
+}
+
+#[test]
+fn run_include_glob_is_case_sensitive_by_default() {
+    let dir = TempDir::new().unwrap();
+    scaffold(dir.path(), &["BadName.RS", "GoodName.rs"]);
+
+    let manifest = write_manifest(
+        dir.path(),
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["."]
+include = ["*.rs"]
+format = "snake_case"
+"#,
+    );
+
+    let cfg = load_config(&manifest).unwrap();
+    let violations = run(&cfg, dir.path());
+
+    assert!(
+        !violations
+            .iter()
+            .map(|v| v.stem.as_str())
+            .any(|x| x == "BadName"),
+        "BadName should be excluded"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -360,7 +688,12 @@ fn run_skips_hidden_directories() {
     );
     let manifest = write_manifest(
         dir.path(),
-        "[package.metadata.convention-lint]\nidl = \"snake_case\"\n",
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["."]
+include = ["*.idl"]
+format = "snake_case"
+"#,
     );
 
     let cfg = load_config(&manifest).unwrap();
@@ -378,7 +711,12 @@ fn run_skips_target_directory() {
     scaffold(dir.path(), &["target/BadName.idl", "src/good_name.idl"]);
     let manifest = write_manifest(
         dir.path(),
-        "[package.metadata.convention-lint]\nidl = \"snake_case\"\n",
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["."]
+include = ["*.idl"]
+format = "snake_case"
+"#,
     );
 
     let cfg = load_config(&manifest).unwrap();
@@ -424,7 +762,6 @@ fn violation_display_format() {
 fn run_respects_gitignore() {
     let dir = TempDir::new().unwrap();
 
-    // KLUCZ: ignore często potrzebuje folderu .git, żeby uznać .gitignore za ważny
     fs::create_dir(dir.path().join(".git")).unwrap();
 
     scaffold(dir.path(), &["ignored_File.rs", "valid_file.rs"]);
@@ -432,7 +769,12 @@ fn run_respects_gitignore() {
 
     let manifest = write_manifest(
         dir.path(),
-        "[package.metadata.convention-lint]\nrs = \"snake_case\"\n",
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["."]
+include = ["*.rs"]
+format = "snake_case"
+"#,
     );
 
     let cfg = load_config(&manifest).unwrap();
@@ -445,19 +787,27 @@ fn run_respects_gitignore() {
 }
 
 #[test]
-fn run_handles_empty_stems_gracefully() {
+fn run_handles_dotfiles_gracefully() {
     let dir = TempDir::new().unwrap();
-    scaffold(dir.path(), &[".rs"]);
+    scaffold(dir.path(), &[".hidden_config"]);
 
     let manifest = write_manifest(
         dir.path(),
-        "[package.metadata.convention-lint]\nrs = \"snake_case\"\n",
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["."]
+include = ["*.txt"]
+format = "snake_case"
+"#,
     );
 
     let cfg = load_config(&manifest).unwrap();
     let violations = run(&cfg, dir.path());
 
-    assert!(violations.is_empty());
+    assert!(
+        violations.is_empty(),
+        "dotfile should not match *.txt include, got: {violations:#?}"
+    );
 }
 
 #[test]
@@ -467,7 +817,12 @@ fn run_reports_multiple_violations_with_same_stem() {
 
     let manifest = write_manifest(
         dir.path(),
-        "[package.metadata.convention-lint]\nrs = \"snake_case\"\n",
+        r#"
+[[package.metadata.convention-lint.checks]]
+dirs = ["."]
+include = ["*.rs"]
+format = "snake_case"
+"#,
     );
 
     let cfg = load_config(&manifest).unwrap();

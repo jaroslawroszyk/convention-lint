@@ -31,34 +31,27 @@ pub enum Error {
         source: toml::de::Error,
     },
 
-    /// The `[package.metadata.convention-lint]` section is absent from the manifest.
-    #[error("`[package.metadata.convention-lint]` section not found in `{0}`")]
+    /// The `[workspace.metadata.convention-lint]` or `[package.metadata.convention-lint]` section is absent from the manifest.
+    #[error(
+        "`[workspace.metadata.convention-lint]` or `[package.metadata.convention-lint]` section not found in `{0}`"
+    )]
     MissingSection(PathBuf),
 
     /// The metadata section exists but is not a TOML table.
-    #[error("`[package.metadata.convention-lint]` must be a TOML table")]
+    #[error(
+        "`[workspace.metadata.convention-lint]` or `[package.metadata.convention-lint]` must be a TOML table"
+    )]
     InvalidSection,
-
-    /// The `dirs` sub-table exists but is not a TOML table.
-    #[error("`[package.metadata.convention-lint.dirs]` must be a TOML table")]
-    InvalidDirsTable,
-
-    /// A convention entry value is not a plain string.
-    #[error("value for key `{key}` must be a plain string (e.g. `\"snake_case\"`)")]
-    InvalidConventionValue {
-        /// The TOML key whose value was not a string.
-        key: String,
-    },
 
     /// The convention string is not one of the recognised identifiers.
     #[error(
-        "unknown convention `{value}` for extension `{ext}`; \
+        "unknown convention `{value}` for pattern(s) [{context}]; \
          valid values: `snake_case`, `CamelCase`, `camelCase`, \
          `SCREAMING_SNAKE_CASE`, `kebab-case`"
     )]
     UnknownConvention {
-        /// The file extension the convention was configured for.
-        ext: String,
+        /// The file extensions (e.g. `*.idl`) that the unrecognised convention was configured for.
+        context: String,
         /// The unrecognised convention string supplied by the user.
         value: String,
     },

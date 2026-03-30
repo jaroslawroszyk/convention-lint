@@ -28,29 +28,102 @@ cargo convention-lint
 
 ## Configuration
 
-Add a `[package.metadata.convention-lint]` section to your `Cargo.toml`. Each key is a file extension mapped to a convention name.
+Each check is a `[[...checks]]` entry under `package.metadata.convention-lint` (or `workspace.metadata.convention-lint`). Every entry specifies **which directories** to scan, **which files** to include/exclude, and **what naming convention** to enforce.
 
-**Single package:**
+### Basic example
 
 ```toml
-[package.metadata.convention-lint]
-rs = "CamelCase"
-
-[package.metadata.convention-lint.dirs]
-rs = ["src/models"]
+[[package.metadata.convention-lint.checks]]
+dirs    = ["src"]
+include = ["*.rs"]
+format  = "snake_case"
 ```
 
-**Workspace** — put the config in the root `Cargo.toml` under `[workspace.metadata]`:
+### Fields
+
+| Field       | Required | Default | Description |
+|-------------|----------|---------|-------------|
+| `dirs`      | yes      | —       | Directories to scan. Supports glob patterns (`*`, `**`, `?`). |
+| `include`   | no       | all files | Glob patterns for files to check (e.g. `["*.rs", "*.py"]`). |
+| `exclude`   | no       | none    | Glob patterns for files to skip (takes priority over `include`). |
+| `format`    | yes      | —       | Naming convention to enforce (see [supported conventions](#supported-conventions)). |
+| `recursive` | no       | `true`  | When `false`, only direct children of each dir are checked. |
+
+### Include / exclude filtering
+
+**Only include** — check only `.rs` files:
 
 ```toml
-[workspace.metadata.convention-lint]
-rs    = "snake_case"
-idl   = "snake_case"
-proto = "snake_case"
+[[package.metadata.convention-lint.checks]]
+dirs    = ["some/dir", "../../some/dir2"]
+include = ["*.rs"]
+format  = "camelCase"
+```
 
-[workspace.metadata.convention-lint.dirs]
-idl = ["src/idl", "proto"]
-# extensions without a dirs entry are scanned recursively
+**Include + exclude** — check `.py` and `.sh` but skip `__init__.py`:
+
+```toml
+[[package.metadata.convention-lint.checks]]
+dirs    = ["other/dir"]
+include = ["*.py", "*.sh"]
+exclude = ["__init__.py"]
+format  = "PascalCase"
+```
+
+**Only exclude** — check everything except specific files:
+
+```toml
+[[package.metadata.convention-lint.checks]]
+dirs    = ["other/dir3"]
+exclude = ["the-only-exclude.txt"]
+format  = "PascalCase"
+```
+
+### Globbed directories
+
+The `dirs` field supports glob patterns so you can target many directories with a single rule:
+
+```toml
+# Single-level wildcard — matches packages/foo/tests, packages/bar/tests, etc.
+[[package.metadata.convention-lint.checks]]
+dirs   = ["packages/*/tests"]
+include = ["*.rs"]
+format  = "snake_case"
+
+# Recursive wildcard — matches src/flow, src/a/flow, src/a/b/flow, etc.
+[[package.metadata.convention-lint.checks]]
+dirs   = ["src/**/flow"]
+include = ["*.rs"]
+format  = "snake_case"
+```
+
+### Non-recursive search
+
+By default every directory is scanned recursively. Set `recursive = false` to check only the direct children:
+
+```toml
+[[package.metadata.convention-lint.checks]]
+dirs      = ["dir1/tests"]
+recursive = false
+format    = "snake_case"
+# dir1/tests/foo.rs        — checked
+# dir1/tests/sub/bar.rs    — skipped
+```
+
+### Workspace config
+
+Put the config in the root `Cargo.toml` under `workspace.metadata`:
+
+```toml
+[[workspace.metadata.convention-lint.checks]]
+dirs    = ["crates/*/src"]
+include = ["*.rs"]
+format  = "snake_case"
+
+[[workspace.metadata.convention-lint.checks]]
+dirs    = ["proto"]
+include = ["*.proto"]
+format  = "snake_case"
 ```
 
 Then run:
@@ -63,6 +136,7 @@ cargo convention-lint --manifest-path path/to/Cargo.toml
 
 Exit code is `0` if everything passes, `1` if there are violations.
 
+> Note Rule Merging: If you define checks in both workspace.metadata and package.metadata, the linter will combine them. This allows you to set global rules for the whole project and specific rules for individual crates.
 ---
 
 ## Supported conventions
@@ -156,7 +230,7 @@ The crate also works as a library if you want to embed it in a build script or a
 
 ```toml
 [dependencies]
-convention-lint = "0.1"
+convention-lint = "0.2"
 ```
 
 ```rust

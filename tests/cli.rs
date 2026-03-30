@@ -6,6 +6,9 @@
 //!
 //! # Fixture layout
 //!
+//! Each fixture uses `[[package.metadata.convention-lint.checks]]` entries
+//! with `dirs`, `include`, and `format` fields.
+//!
 //! ```text
 //! tests/fixtures/
 //! ├── pass/          ← all files conform → exit 0
@@ -18,11 +21,11 @@
 //! └── fail/          ← intentional violations → exit 1
 //!     ├── Cargo.toml
 //!     ├── idl/
-//!     │   ├── my_service.idl   (ok)
+//!     │   ├── my_service.idl   (ok — snake_case)
 //!     │   ├── MyService.idl    (violation: should be snake_case)
 //!     │   └── another_Bad.idl  (violation: should be snake_case)
 //!     └── src/
-//!         ├── OrderProcessor.rs  (ok)
+//!         ├── OrderProcessor.rs  (ok — CamelCase)
 //!         └── bad_module.rs      (violation: should be CamelCase)
 //! ```
 
@@ -107,8 +110,8 @@ fn fail_fixture_lists_bad_idl_stems() {
         .args(["--manifest-path", &fixture("fail")])
         .assert()
         .failure()
-        .stdout(predicate::str::contains("MyService"))
-        .stdout(predicate::str::contains("another_Bad"));
+        .stderr(predicate::str::contains("MyService"))
+        .stderr(predicate::str::contains("another_Bad"));
 }
 
 #[test]
@@ -117,7 +120,7 @@ fn fail_fixture_lists_bad_rs_stem() {
         .args(["--manifest-path", &fixture("fail")])
         .assert()
         .failure()
-        .stdout(predicate::str::contains("bad_module"));
+        .stderr(predicate::str::contains("bad_module"));
 }
 
 #[test]
@@ -176,19 +179,28 @@ fn missing_metadata_section_exits_nonzero() {
 fn workspace_metadata_cli_test() {
     let dir = tempfile::tempdir().unwrap();
     let toml_path = dir.path().join("Cargo.toml");
+
     std::fs::write(
         &toml_path,
         r#"[workspace]
-[workspace.metadata.convention-lint]
-rs = "snake_case""#,
+members = ["crate_a"]
+
+[[workspace.metadata.convention-lint.checks]]
+dirs = ["crate_a/src"]
+include = ["*.rs"]
+format = "snake_case"
+"#,
     )
     .unwrap();
 
-    std::fs::write(dir.path().join("BadFile.rs"), "").unwrap();
+    let src_dir = dir.path().join("crate_a/src");
+    std::fs::create_dir_all(&src_dir).unwrap();
+    std::fs::write(src_dir.join("BadFileName.rs"), "").unwrap();
 
     linter()
         .args(["--manifest-path", toml_path.to_str().unwrap()])
         .assert()
         .failure()
-        .stdout(predicate::str::contains("BadFile.rs"));
+        .stderr(predicate::str::contains("BadFileName.rs"))
+        .stderr(predicate::str::contains("does not follow snake_case"));
 }

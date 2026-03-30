@@ -1,71 +1,40 @@
 //! Naming convention definitions and stem validation.
 //!
 //! This module is **entirely agnostic** of any particular build system or
-//! configuration format.  It knows nothing about Cargo, CLI arguments, or I/O.
+//! configuration format. It knows nothing about Cargo, CLI arguments, or I/O.
 //! Higher-level crates or modules wire these primitives into a concrete
 //! linting pipeline.
 
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use std::fmt;
 use std::str::FromStr;
-
 use thiserror::Error;
 
-/// Error returned when an unrecognised string is parsed as a [`Convention`].
-///
-/// This is the [`Err`] type for `<Convention as FromStr>`.
+/// Error returned when an unrecognized string is parsed as a [`Convention`].
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[error(
-    "unknown convention `{0}`; valid values: \
-     `snake_case`, `CamelCase`, `camelCase`, `SCREAMING_SNAKE_CASE`, `kebab-case`"
+    "unknown convention `{0}`; valid values: `snake_case`, `CamelCase`, `camelCase`, `SCREAMING_SNAKE_CASE`, `kebab-case`"
 )]
 pub struct UnknownConvention(pub String);
 
-/// A naming convention that file stems must conform to.
-///
-/// # Parsing
-///
-/// Conventions are parsed from plain string identifiers.
-/// `PascalCase` is accepted as an alias for [`CamelCase`](Self::CamelCase).
-///
-/// ```
-/// use convention_lint::Convention;
-///
-/// let c: Convention = "snake_case".parse().unwrap();
-/// assert_eq!(c, Convention::SnakeCase);
-///
-/// assert!("UNKNOWN".parse::<Convention>().is_err());
-/// ```
-///
-/// # Validation
-///
-/// ```
-/// use convention_lint::Convention;
-///
-/// assert!(Convention::SnakeCase.is_valid("my_service"));
-/// assert!(!Convention::SnakeCase.is_valid("MyService"));
-/// ```
+/// Supported naming conventions for file stems.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Convention {
-    /// `snake_case` — all lowercase words separated by underscores.
+    /// `snake_case` (e.g. `my_service`)
     SnakeCase,
-    /// `CamelCase` / `PascalCase` — each word starts with an uppercase letter, no separators.
+    /// `CamelCase` or `PascalCase` (e.g. `MyService`)
     CamelCase,
-    /// `camelCase` — like `CamelCase` but the first word is lowercase.
+    /// `camelCase` (e.g. `myService`)
     LowerCamelCase,
-    /// `SCREAMING_SNAKE_CASE` — all uppercase words separated by underscores.
+    /// `SCREAMING_SNAKE_CASE` (e.g. `MY_SERVICE`)
     ScreamingSnakeCase,
-    /// `kebab-case` — all lowercase words separated by hyphens.
+    /// `kebab-case` (e.g. `my-service`)
     KebabCase,
 }
 
 impl Convention {
     /// Returns the canonical string identifier for this convention.
-    ///
-    /// This is the left-inverse of [`FromStr`]: `s.parse::<Convention>()?.as_str() == s`
-    /// holds for all valid identifiers (except the `PascalCase` alias, which maps to
-    /// `"CamelCase"`).
-    #[inline]
     #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {
@@ -77,39 +46,30 @@ impl Convention {
         }
     }
 
-    /// Returns `true` if `stem` — a filename **without** its extension — conforms
-    /// to this convention.
+    /// Checks if the given file stem conforms to this convention.
     ///
-    /// # Examples
+    /// An empty stem is considered invalid for all conventions.
+    /// The stem is expected to be the file name without extension or directory components.
+    /// For example, for `src/my_service.rs`, the stem would be `my_service`.
     ///
-    /// ```
-    /// use convention_lint::Convention;
+    /// This method does not perform any filesystem operations and assumes the input
+    /// is a valid file stem. It validates the string based on the following rules:
     ///
-    /// // snake_case
-    /// assert!(Convention::SnakeCase.is_valid("hello_world"));
-    /// assert!(Convention::SnakeCase.is_valid("foo123"));
-    /// assert!(!Convention::SnakeCase.is_valid("Hello_World"));
-    /// assert!(!Convention::SnakeCase.is_valid("hello__world")); // double underscore
-    /// assert!(!Convention::SnakeCase.is_valid("hello_"));       // trailing underscore
-    ///
-    /// // CamelCase
-    /// assert!(Convention::CamelCase.is_valid("MyService"));
-    /// assert!(!Convention::CamelCase.is_valid("my_service"));
-    ///
-    /// // SCREAMING_SNAKE_CASE
-    /// assert!(Convention::ScreamingSnakeCase.is_valid("MY_CONST"));
-    /// assert!(!Convention::ScreamingSnakeCase.is_valid("my_const"));
-    ///
-    /// // kebab-case
-    /// assert!(Convention::KebabCase.is_valid("my-service"));
-    /// assert!(!Convention::KebabCase.is_valid("my--service")); // double hyphen
-    /// ```
+    /// - **`snake_case`**: Lowercase letters, digits, and underscores. Must start with
+    ///   a lowercase letter, cannot end with an underscore, and no consecutive underscores (`__`).
+    /// - **`CamelCase`**: Alphanumeric characters. Must start with an uppercase letter.
+    ///   No separators allowed.
+    /// - **`camelCase`**: Alphanumeric characters. Must start with a lowercase letter.
+    ///   No separators allowed.
+    /// - **`SCREAMING_SNAKE_CASE`**: Uppercase letters, digits, and underscores. Must start
+    ///   with an uppercase letter, cannot end with an underscore, and no consecutive underscores.
+    /// - **`kebab-case`**: Lowercase letters, digits, and hyphens. Must start with
+    ///   a lowercase letter, cannot end with a hyphen, and no consecutive hyphens (`--`).
     #[must_use]
     pub fn is_valid(&self, stem: &str) -> bool {
         let Some(first) = stem.chars().next() else {
             return false;
         };
-
         match self {
             Self::SnakeCase => {
                 first.is_ascii_lowercase()
@@ -147,7 +107,6 @@ impl Convention {
 
 impl FromStr for Convention {
     type Err = UnknownConvention;
-
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "snake_case" => Ok(Self::SnakeCase),
@@ -163,5 +122,54 @@ impl FromStr for Convention {
 impl fmt::Display for Convention {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
+    }
+}
+
+/// A file naming violation detected by the linter.
+#[derive(Debug, Clone)]
+pub struct Matcher {
+    include: Option<GlobSet>,
+    exclude: Option<GlobSet>,
+}
+
+impl Matcher {
+    /// Creates a new [`Matcher`] instance.
+    ///
+    /// # Parameters
+    /// * `include` - list of glob patterns for files to be checked.
+    /// * `exclude` - list of glob patterns for files to be ignored.
+    ///
+    /// # Errors
+    /// Returns an error if any of the glob patterns are invalid.
+    pub fn new(include: &[String], exclude: &[String]) -> Result<Self, globset::Error> {
+        let build_set = |patterns: &[String]| -> Result<Option<GlobSet>, globset::Error> {
+            if patterns.is_empty() {
+                return Ok(None);
+            }
+            let mut builder = GlobSetBuilder::new();
+            for p in patterns {
+                builder.add(Glob::new(p)?);
+            }
+            Ok(Some(builder.build()?))
+        };
+
+        Ok(Self {
+            include: build_set(include)?,
+            exclude: build_set(exclude)?,
+        })
+    }
+
+    /// Checks if the given filename matches the include patterns and does not match the exclude patterns.
+    #[must_use]
+    pub fn is_match(&self, filename: &str) -> bool {
+        if let Some(ref exc) = self.exclude {
+            if exc.is_match(filename) {
+                return false;
+            }
+        }
+
+        self.include
+            .as_ref()
+            .is_none_or(|inc| inc.is_match(filename))
     }
 }

@@ -1,51 +1,66 @@
 //! # convention-lint
 //!
-//! A file-naming convention linter configurable via `Cargo.toml` metadata.
+//! A file-naming convention linter for Rust projects, configurable via `Cargo.toml` metadata.
 //!
-//! Drop a `[package.metadata.convention-lint]` section into the manifest of
-//! the project you want to lint:
+//! It enforces naming conventions (like `snake_case` or `CamelCase`) for any files in your
+//! project, not just Rust source files.
+//!
+//! ## Configuration
+//!
+//! Add a `[[package.metadata.convention-lint.checks]]` section to your `Cargo.toml`:
 //!
 //! ```toml
-//! [package.metadata.convention-lint]
-//! idl = "snake_case"
-//! rs  = "CamelCase"
+//! [[package.metadata.convention-lint.checks]]
+//! dirs    = ["src/idl", "proto"]
+//! include = ["*.idl", "*.proto"]
+//! format  = "snake_case"
 //!
-//! [package.metadata.convention-lint.dirs]
-//! idl = ["src/idl"]   # optional; omit to scan the whole project
+//! [[package.metadata.convention-lint.checks]]
+//! dirs    = ["src"]
+//! include = ["*.rs"]
+//! format  = "snake_case"
 //! ```
 //!
-//! //! ## Supported conventions
+//! ## Supported conventions
 //!
-//! | Identifier               | Example          |
-//! |--------------------------|------------------|
-//! | `snake_case`             | `my_service`     |
-//! | `CamelCase`              | `MyService`      |
-//! | `PascalCase`             | `MyService`      |
-//! | `camelCase`              | `myService`      |
-//! | `SCREAMING_SNAKE_CASE`   | `MY_SERVICE`     |
-//! | `kebab-case`             | `my-service`     |
+//! | Identifier            | Example       |
+//! |-----------------------|---------------|
+//! | `snake_case`          | `my_service`  |
+//! | `CamelCase`           | `MyService`   |
+//! | `PascalCase`          | `MyService`   |
+//! | `camelCase`           | `myService`   |
+//! | `SCREAMING_SNAKE_CASE`| `MY_SERVICE`  |
+//! | `kebab-case`          | `my-service`  |
 //!
-//! Then invoke the linter as a Cargo subcommand:
+//! ## Usage
+//!
+//! Invoke the linter as a Cargo subcommand:
 //!
 //! ```sh
 //! cargo convention-lint
-//! cargo convention-lint --manifest-path path/to/Cargo.toml
 //! ```
 //!
 //! ## Library usage
 //!
-//! The crate exposes its full API so it can be embedded in build-scripts or
-//! other tooling:
+//! The crate exposes its full API so it can be embedded in build-scripts or other tooling:
 //!
 //! ```no_run
 //! use convention_lint::{config::load_config, lint::run};
+//! use std::path::Path;
 //!
-//! let cfg = load_config(std::path::Path::new("Cargo.toml")).unwrap();
-//! let violations = run(&cfg, std::path::Path::new("."));
+//! let manifest_path = Path::new("Cargo.toml");
+//! let project_root = Path::new(".");
+//!
+//! let cfg = load_config(manifest_path).expect("Failed to load config");
+//! let violations = run(&cfg, project_root);
+//!
 //! for v in &violations {
 //!     eprintln!("{v}");
 //! }
-//! std::process::exit(if violations.is_empty() { 0 } else { 1 });
+//!
+//! if !violations.is_empty() {
+//!     std::process::exit(1);
+//! }
 //! ```
 
 pub mod config;

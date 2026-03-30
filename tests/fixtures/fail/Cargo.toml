@@ -3,16 +3,15 @@ name = "fixture-fail"
 version = "0.0.0"
 edition = "2024"
 
-# This fixture intentionally contains naming violations.
-# `cargo convention-lint` must exit 1 and report the bad stems.
+[[package.metadata.convention-lint.checks]]
+dirs = ["idl"]
+include = ["*.idl"]
+format = "snake_case"
 
-[package.metadata.convention-lint]
-idl = "snake_case"
-rs  = "CamelCase"
-
-[package.metadata.convention-lint.dirs]
-idl = ["idl"]
-rs  = ["src"]
+[[package.metadata.convention-lint.checks]]
+dirs = ["src"]
+include = ["*.rs"]
+format = "CamelCase"
 
 [lib]
 path = "src/bad_module.rs"

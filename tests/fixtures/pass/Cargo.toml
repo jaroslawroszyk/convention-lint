@@ -3,16 +3,15 @@ name = "fixture-pass"
 version = "0.0.0"
 edition = "2024"
 
-# All files in this fixture conform to the configured conventions.
-# `cargo convention-lint` must exit 0 against this project.
+[[package.metadata.convention-lint.checks]]
+dirs = ["idl"]
+include = ["*.idl"]
+format = "snake_case"
 
-[package.metadata.convention-lint]
-idl = "snake_case"
-rs  = "snake_case"
-
-[package.metadata.convention-lint.dirs]
-idl = ["idl"]
-rs  = ["src"]
+[[package.metadata.convention-lint.checks]]
+dirs = ["src"]
+include = ["*.rs"]
+format = "snake_case"
 
 [lib]
 path = "src/my_module.rs"

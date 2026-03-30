@@ -9,9 +9,6 @@ use crate::config::Config;
 use crate::core::Convention;
 
 /// A single naming violation detected during a lint run.
-///
-/// The [`fmt::Display`] output intentionally mirrors the `error[…]: …` format
-/// used by `rustc` and `clippy`, making it easy to embed in CI logs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Violation {
     /// Path to the offending file, relative to the scanned project root.
@@ -39,65 +36,65 @@ impl fmt::Display for Violation {
 ///
 /// # Panics
 ///
-/// This function will panic if the internal mutex is poisoned, which occurs
-/// if a thread panics while holding the lock.
+/// This function will panic if the internal mutex is poisoned.
 #[must_use]
 pub fn run(config: &Config, project_root: &Path) -> Vec<Violation> {
     let violations = Arc::new(Mutex::new(Vec::new()));
 
-    for (ext, convention) in &config.rules {
-        let targets = search_dirs(config, ext, project_root);
-
-        for target in targets {
-            let violations_lock = Arc::clone(&violations);
-            let ext_owned = ext.clone();
-            let conv_owned = convention.clone();
-            let root_owned = project_root.to_path_buf();
+    for rule in &config.rules {
+        for dir in &rule.dirs {
+            let target = if dir.is_absolute() {
+                dir.clone()
+            } else {
+                project_root.join(dir)
+            };
 
             if !target.exists() {
-                eprintln!(
-                    "warning: directory `{}` for extension `.{ext_owned}` does not exist",
-                    target.display()
-                );
                 continue;
             }
 
-            let walker = WalkBuilder::new(target)
-                .standard_filters(true)
-                .hidden(false)
-                .parents(false)
-                .build_parallel();
+            let violations_lock = Arc::clone(&violations);
+            let matcher = rule.matcher.clone();
+            let convention = rule.convention.clone();
+            let root_owned = project_root.to_path_buf();
+
+            let mut builder = WalkBuilder::new(target);
+            builder.standard_filters(true).hidden(false).parents(false);
+
+            if !rule.recursive {
+                builder.max_depth(Some(1));
+            }
+
+            let walker = builder.build_parallel();
 
             walker.run(|| {
                 let v_inner = Arc::clone(&violations_lock);
-                let e_inner = ext_owned.clone();
-                let c_inner = conv_owned.clone();
+                let m_inner = matcher.clone();
+                let c_inner = convention.clone();
                 let r_inner = root_owned.clone();
 
                 Box::new(move |result| {
                     if let Ok(entry) = result {
                         let path = entry.path();
+
+                        let rel_path = path.strip_prefix(&r_inner).unwrap_or(path);
+
+                        let rel_path_str = rel_path.to_string_lossy();
                         let file_name = entry.file_name().to_string_lossy();
 
-                        // Collapse hidden/target checks and use is_some_and
-                        if (file_name == "target"
-                            || (file_name.starts_with('.') && entry.depth() > 0))
-                            && entry.file_type().is_some_and(|ft| ft.is_dir())
+                        if entry.file_type().is_some_and(|ft| ft.is_dir()) && file_name == "target"
+                            || (file_name.starts_with('.') && entry.depth() > 0)
                         {
                             return ignore::WalkState::Skip;
                         }
 
-                        // Use is_some_and and combine conditions for files
                         if entry.file_type().is_some_and(|f| f.is_file())
-                            && path.extension().and_then(|s| s.to_str()) == Some(&e_inner)
+                            && m_inner.is_match(&rel_path_str)
                         {
                             if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
                                 if !c_inner.is_valid(stem) {
-                                    let rel_path =
-                                        path.strip_prefix(&r_inner).unwrap_or(path).to_path_buf();
-
                                     v_inner.lock().expect("mutex poisoned").push(Violation {
-                                        path: rel_path,
+                                        path: rel_path.to_path_buf(),
                                         stem: stem.to_owned(),
                                         expected: c_inner.clone(),
                                     });
@@ -113,23 +110,4 @@ pub fn run(config: &Config, project_root: &Path) -> Vec<Violation> {
 
     let final_lock = Arc::try_unwrap(violations).expect("Lock still has multiple owners");
     final_lock.into_inner().expect("Mutex is poisoned")
-}
-
-/// Resolve the directories to search for `ext`, falling back to the project
-/// root when no explicit list is configured.
-fn search_dirs(config: &Config, ext: &str, project_root: &Path) -> Vec<PathBuf> {
-    config.dirs.get(ext).map_or_else(
-        || vec![project_root.to_path_buf()],
-        |dirs| {
-            dirs.iter()
-                .map(|d| {
-                    if d.as_os_str().is_empty() || d == Path::new(".") {
-                        project_root.to_path_buf()
-                    } else {
-                        project_root.join(d)
-                    }
-                })
-                .collect()
-        },
-    )
 }
