@@ -67,8 +67,8 @@ jobs:
         with:
           toolchain: ${{ env.NIGHTLY }}
           components: miri
-      - name: cargo miri test
-        run: cargo miri test
+      - name: cargo miri test --lib
+        run: cargo miri test --lib
         env:
           MIRIFLAGS: ""
   loom:

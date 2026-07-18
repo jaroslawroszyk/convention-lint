@@ -114,8 +114,8 @@ pub fn run(config: &Config, project_root: &Path) -> Vec<Violation> {
                             let path = entry.path();
 
                             let rel_path = path.strip_prefix(&r_inner).unwrap_or(path);
-
-                            let rel_path_str = rel_path.to_string_lossy();
+                            let rel_path_str = rel_path.to_string_lossy().replace('\\', "/");
+                            let rel_path_buf = PathBuf::from(rel_path_str.as_str());
                             let file_name = entry.file_name().to_string_lossy();
 
                             if entry.file_type().is_some_and(|ft| ft.is_dir())
@@ -130,7 +130,7 @@ pub fn run(config: &Config, project_root: &Path) -> Vec<Violation> {
                                 if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
                                     if !c_inner.is_valid(stem) {
                                         v_inner.lock().expect("mutex poisoned").push(Violation {
-                                            path: rel_path.to_path_buf(),
+                                            path: rel_path_buf,
                                             stem: stem.to_owned(),
                                             expected: c_inner.clone(),
                                         });

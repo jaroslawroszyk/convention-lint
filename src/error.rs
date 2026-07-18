@@ -11,7 +11,7 @@ use thiserror::Error;
 #[non_exhaustive]
 pub enum Error {
     /// The manifest file could not be opened or read.
-    #[error("cannot read `{path}`: {source}")]
+    #[error("cannot read `{path_display}`: {source}", path_display = path.display())]
     Io {
         /// Path to the manifest that could not be read.
         path: PathBuf,
@@ -25,7 +25,7 @@ pub enum Error {
     EmptyDirs,
 
     /// The manifest file contains invalid TOML.
-    #[error("cannot parse `{path}`: {source}")]
+    #[error("cannot parse `{path_display}`: {source}", path_display = path.display())]
     Toml {
         /// Path to the manifest that could not be parsed.
         path: PathBuf,
@@ -36,7 +36,8 @@ pub enum Error {
 
     /// The `[workspace.metadata.convention-lint]` or `[package.metadata.convention-lint]` section is absent from the manifest.
     #[error(
-        "`[workspace.metadata.convention-lint]` or `[package.metadata.convention-lint]` section not found in `{0}`"
+        "`[workspace.metadata.convention-lint]` or `[package.metadata.convention-lint]` section not found in `{path_display}`",
+        path_display = .0.display()
     )]
     MissingSection(PathBuf),
 

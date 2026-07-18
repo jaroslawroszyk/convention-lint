@@ -33,10 +33,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Build
-        run: cargo build --all-targets
+        run: cargo build --locked --all-targets
 
       - name: Test
-        run: cargo test --all-targets
+        run: cargo test --locked --all-targets
 
   # -------------------------------------------------------------------------
   # Static checks — mirrors the local `checks()` shell function:
