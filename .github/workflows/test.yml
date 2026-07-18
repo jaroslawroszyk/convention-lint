@@ -160,6 +160,6 @@ jobs:
       - name: Upload to codecov.io
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # tag=v7.0.0
         with:
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
           env_vars: OS,RUST

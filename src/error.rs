@@ -37,7 +37,7 @@ pub enum Error {
     /// The `[workspace.metadata.convention-lint]` or `[package.metadata.convention-lint]` section is absent from the manifest.
     #[error(
         "`[workspace.metadata.convention-lint]` or `[package.metadata.convention-lint]` section not found in `{path_display}`",
-        path_display = .0.display()
+        path_display = _0.display()
     )]
     MissingSection(PathBuf),
 

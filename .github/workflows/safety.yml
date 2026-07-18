@@ -81,8 +81,8 @@ jobs:
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
         with:
           toolchain: stable
-      - name: cargo test --test loom
-        run: cargo test --release --test loom
+      - name: cargo test --release --all-targets
+        run: cargo test --release --all-targets
         env:
           LOOM_MAX_PREEMPTIONS: 2
           RUSTFLAGS: "--cfg loom"
