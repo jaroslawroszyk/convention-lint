@@ -21,7 +21,7 @@ format = "snake_case"
 
 [[bin]]
 name = "cargo-convention-lint"
-path = "src/main.rs"
+path = "src/bin/convention_lint.rs"
 
 [dependencies]
 glob = "0.3.3"
