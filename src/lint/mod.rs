@@ -1,5 +1,8 @@
 //! Core linting logic — filesystem walk and violation collection.
 
+pub mod convention;
+pub mod core;
+
 use crate::config::Config;
 use crate::core::Convention;
 use ignore::WalkBuilder;

@@ -92,9 +92,13 @@
 //! ```
 
 pub mod config;
-pub mod core;
 pub mod error;
 pub mod lint;
+
+/// Compatibility re-export module for the core convention types.
+pub mod core {
+    pub use crate::lint::core::{Convention, Matcher, UnknownConvention};
+}
 
 pub use crate::core::Convention;
 pub use crate::error::Error;
